@@ -78,6 +78,6 @@ ggplot(data = melt.auto.commercial) + geom_line(aes( x = YearQtr, y = value, col
 ggplot(data = melt.auto.agg.type) + geom_line(aes( x = YearQtr, y = value, color = RiskClass)) + facet_wrap( ~ variable, scales = "free")
 
 
-
+# hello worl
 
 

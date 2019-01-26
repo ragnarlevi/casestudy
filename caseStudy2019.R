@@ -20,9 +20,28 @@ names(autoclaims)
 tmp <- c("Year", "Qtr", "RiskClass", "Type", "CarYearsOfExposure", "NoBodilyInjury", "NoPropertyDamage",
          "NoComprehensive", "NoCollision", "NoPersonalInjury", "AmountBodilyInjury", "AmountPropertyDamage",
          "AmountComprehensive", "AmountCollision", "AmountPersonalInjury")
-
 names(autoclaims) <- tmp
 head(autoclaims)
+
+
+# Total Exposure for each qtr
+autoclaims$TotalExposure <- 0
+# let's just do a brute force for loop
+for( i in levels(factor(autoclaims$Year))){
+  for(j in levels(factor(autoclaims$Qtr))){
+    
+    autoclaims$TotalExposure[autoclaims$Year == i & autoclaims$Qtr == j] <- sum(autoclaims$CarYearsOfExposure[autoclaims$Year == i & autoclaims$Qtr == j] )
+    
+  }
+}
+# then we normalize
+autoclaims$ExposureNormalize <- autoclaims$CarYearsOfExposure/autoclaims$TotalExposure
+
+# lets make three plots for each vehicle size 
+
+ggplot(data = au)
+
+
 
 
 # add year + qtr
@@ -36,6 +55,8 @@ lowerFn <- function(data, mapping, method , ...) {
     geom_smooth(method = method, ...)
   p
 }
+
+attach(autoclaims)
 
 
 ggpairs(autoclaims[, c(4,6:dimension[2])],lower = list(continuous = wrap(lowerFn, method = "loess")), 
@@ -79,5 +100,18 @@ ggplot(data = melt.auto.agg.type) + geom_line(aes( x = YearQtr, y = value, color
 
 
 # hello worl
+
+
+# Only plot one variable
+# Remember agg.type is the aggregated personal and commercial
+View(autoclaims.agg.type)
+
+ggplot(data = autoclaims.agg.type) + geom_line(aes( x = YearQtr, y = NoBodilyInjury , color = RiskClass))
+ggplot(data = autoclaims.agg.type) + geom_line(aes( x = YearQtr, y = CarYearsOfExposure , color = RiskClass))
+  
+
+
+
+
 
 

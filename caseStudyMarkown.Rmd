@@ -1,0 +1,363 @@
+---
+title: "Case Study"
+author: "Ragnar"
+date: "January 27, 2019"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    theme: lumen
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# Data input and discriptive analysis
+
+
+First thing first is load packages
+
+```{r, warning=FALSE, echo=T, results='hide', message=FALSE}
+# set working directory
+setwd("C:/Users/ragna/OneDrive/Documents/ISEG/Actuarial Science Courses @ ISEG/case study")
+
+# load packages
+
+# includes ggplot and dplyr which are good packages when working with data and plot
+require(tidyverse)
+# For excel reading
+require(readxl)
+
+# Pakacage used if we need to plot discriptive plot regarding correlations etc. extension of ggplot
+require(GGally)
+
+# packake which includes the melt function which is nice when we need to plot many variables on the same plot
+require(reshape2)
+```
+
+Next we read the data and modify it a little bit
+
+
+```{r}
+# read data, skip = Minimum number of rows to skip before reading anything, be it column names or data
+autoclaims <- read_excel("2019-student-research-case-study-data.xlsx", skip = 9)
+head(autoclaims)
+
+dimension <- dim(autoclaims)
+dimension
+
+names(autoclaims)
+# We need to Change the names
+
+# temporary names vector
+tmp <- c("Year", "Qtr", "RiskClass", "Type", "CarYearsOfExposure", "NoBodilyInjury", "NoPropertyDamage",
+         "NoComprehensive", "NoCollision", "NoPersonalInjury", "AmountBodilyInjury", "AmountPropertyDamage",
+         "AmountComprehensive", "AmountCollision", "AmountPersonalInjury")
+
+variables <- c("CarYearsOfExposure", "NoBodilyInjury", "NoPropertyDamage",
+"NoComprehensive", "NoCollision", "NoPersonalInjury", "AmountBodilyInjury", "AmountPropertyDamage",
+"AmountComprehensive", "AmountCollision", "AmountPersonalInjury")
+names(autoclaims) <- tmp
+head(autoclaims)
+
+
+# Add one colum which is the year + qtr
+autoclaims$YearQtr <- autoclaims$Year + 2.5*autoclaims$Qtr/10 
+
+# Total Exposure for each qtr
+autoclaims$TotalExposure <- 0
+
+# let's just do a brute force for loop
+for( i in levels(factor(autoclaims$Year))){
+  for(j in levels(factor(autoclaims$Qtr))){
+    
+    autoclaims$TotalExposure[autoclaims$Year == i & autoclaims$Qtr == j] <- sum(autoclaims$CarYearsOfExposure[autoclaims$Year == i & autoclaims$Qtr == j] )
+    
+  }
+}
+
+# then we normalize
+autoclaims$ExposureNormalize <- autoclaims$CarYearsOfExposure/autoclaims$TotalExposure
+
+
+```
+
+
+Next step is to make plots
+
+```{r}
+ggplot(data = autoclaims[ autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = ExposureNormalize , color = RiskClass)) + ggtitle("Normalized exposure for Personal vechicles")
+
+ggplot(data = autoclaims[ autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = ExposureNormalize , color = RiskClass)) + ggtitle("Normalized exposure for Commercial vechicles")
+
+ggplot(data = autoclaims[ autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = CarYearsOfExposure , color = RiskClass)) + ggtitle("Exposure for Personal vechicles")
+
+ggplot(data = autoclaims[ autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = CarYearsOfExposure , color = RiskClass)) + ggtitle("Exposure for Commercial vechicles")
+
+```
+
+The following shows exposure and  normalized exposure for each risk class for each type. Next We look at all the variables.
+
+```{r,fig.align = "center", out.width = '120%'}
+# We need to  use the melt function if we want to plot for each variable
+melt.autoclaims <- melt(autoclaims, id = c("Year", "Qtr", "YearQtr", "Type", "RiskClass"))
+  ggplot(data = melt.autoclaims[ melt.autoclaims$Type  == "Personal" & !(melt.autoclaims$variable %in% c("TotalExposure", "ExposureNormalize"))
+                                 ,  , drop = F]) + geom_line(aes( x = YearQtr, y = value , color = RiskClass))+ facet_wrap( ~ variable, scales = "free") + 
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          legend.text=element_text(size=6)) +
+    guides(col = guide_legend(nCOL = 1, byrow = F)) + ggtitle("Personal vehicles")
+
+  
+  ggplot(data = melt.autoclaims[ melt.autoclaims$Type  == "Commercial" & !(melt.autoclaims$variable %in% c("TotalExposure", "ExposureNormalize"))
+                                 ,  , drop = F]) + geom_line(aes( x = YearQtr, y = value , color = RiskClass))+ facet_wrap( ~ variable, scales = "free") + 
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          legend.text=element_text(size=6)) +
+    guides(col = guide_legend(nCOL = 1, byrow = F))+ ggtitle("Commercial vehicles")
+
+```
+
+There are seasonal trends but There are large spikes in Amount Comprehensive. One where all risk groups spike but also two large spikes for one Risk group (SSH). Also, the risk group for commerical and Personal don't necessarily have the same relative sizes of the risk groups that is probably because the number of policyholders in each group is not the same. We need to look closer to the individual variables
+
+## Amount Comprehensive
+
+```{r}
+ggplot(data = autoclaims[ grepl("L$", x = autoclaims$RiskClass) & autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = AmountComprehensive , color = RiskClass)) + ggtitle("Amount Comprehensive for Personal vechicles for Low Risk classes")
+
+ggplot(data = autoclaims[ grepl("A$", x = autoclaims$RiskClass) & autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = AmountComprehensive , color = RiskClass)) + ggtitle("Amount Comprehensive for Personal vechicles for Average Risk classes")
+
+ggplot(data = autoclaims[ grepl("H$", x = autoclaims$RiskClass) & autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = AmountComprehensive , color = RiskClass)) + ggtitle("Amount Comprehensive for Personal vechicles for High Risk classes")
+
+
+ggplot(data = autoclaims[ grepl("L$", x = autoclaims$RiskClass) & autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = AmountComprehensive , color = RiskClass)) + ggtitle("Amount Comprehensive for Commercial vechicles for Low Risk classes ")
+
+ggplot(data = autoclaims[ grepl("A$", x = autoclaims$RiskClass) & autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = AmountComprehensive , color = RiskClass)) + ggtitle("Amount Comprehensive for Commercial vechicles for Average Risk classes ")
+
+ggplot(data = autoclaims[ grepl("H$", x = autoclaims$RiskClass) & autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = AmountComprehensive , color = RiskClass)) + ggtitle("Amount Comprehensive for Commercial vechicles for High Risk classes")
+
+```
+
+So we can see the large spikes belong to the Small vehicle, senior and high risk class and the spike is always at the 2nd quarter but it is extraordinarlily large the two previous year. We have the same spikes also for the commercial vehicles. Also, There was some disaster at 3rd quarter of 2010 as all Risk Classes have a spike.
+
+## Number of Comprehensive
+
+```{r}
+ggplot(data = autoclaims[ grepl("L$", x = autoclaims$RiskClass) & autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = NoComprehensive , color = RiskClass)) + ggtitle("Number of Comprehensive for Personal vechicles for Low Risk classes")
+
+ggplot(data = autoclaims[ grepl("A$", x = autoclaims$RiskClass) & autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = NoComprehensive , color = RiskClass)) + ggtitle("Number of Comprehensive for Personal vechicles for Average Risk classes")
+
+ggplot(data = autoclaims[ grepl("H$", x = autoclaims$RiskClass) & autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = NoComprehensive , color = RiskClass)) + ggtitle("Number of Comprehensive for Personal vechicles for High Risk classes")
+
+
+ggplot(data = autoclaims[ grepl("L$", x = autoclaims$RiskClass) & autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = NoComprehensive , color = RiskClass)) + ggtitle("Number of Comprehensive for Commercial vechicles for Low Risk classes ")
+
+ggplot(data = autoclaims[ grepl("A$", x = autoclaims$RiskClass) & autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = NoComprehensive , color = RiskClass)) + ggtitle("Number of Comprehensive for Commercial vechicles for Average Risk classes ")
+
+ggplot(data = autoclaims[ grepl("H$", x = autoclaims$RiskClass) & autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = NoComprehensive , color = RiskClass)) + ggtitle("Number of Comprehensive for Commercial vechicles for High Risk classes")
+```
+
+
+## Number of Personal Injury
+```{r}
+ggplot(data = autoclaims[ grepl("L$", x = autoclaims$RiskClass) & autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = NoPersonalInjury , color = RiskClass)) + ggtitle("Number of Personal Injuries for Personal vechicles for Low Risk classes")
+
+ggplot(data = autoclaims[ grepl("A$", x = autoclaims$RiskClass) & autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = NoPersonalInjury , color = RiskClass)) + ggtitle("Number of Personal Injuries for Personal vechicles for Average Risk classes")
+
+ggplot(data = autoclaims[ grepl("H$", x = autoclaims$RiskClass) & autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = NoPersonalInjury , color = RiskClass)) + ggtitle("Number of Personal Injuries for Personal vechicles for High Risk classes")
+
+
+ggplot(data = autoclaims[ grepl("L$", x = autoclaims$RiskClass) & autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = NoPersonalInjury , color = RiskClass)) + ggtitle("Number of Personal Injuries for Commercial vechicles for Low Risk classes ")
+
+ggplot(data = autoclaims[ grepl("A$", x = autoclaims$RiskClass) & autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = NoPersonalInjury , color = RiskClass)) + ggtitle("Number of Personal Injuries for Commercial vechicles for Average Risk classes ")
+
+ggplot(data = autoclaims[ grepl("H$", x = autoclaims$RiskClass) & autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = NoPersonalInjury , color = RiskClass)) + ggtitle("Number of Personal Injuries for Commercial vechicles for High Risk classes")
+```
+
+Again Super spikes for some High Risk classes, some for average and "normal" for low risk
+
+## Amount Personal injury
+
+```{r}
+ggplot(data = autoclaims[ grepl("L$", x = autoclaims$RiskClass) & autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = AmountPersonalInjury , color = RiskClass)) + ggtitle("Amount PersonalInjury for Personal vechicles for Low Risk classes")
+
+ggplot(data = autoclaims[ grepl("A$", x = autoclaims$RiskClass) & autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = AmountPersonalInjury , color = RiskClass)) + ggtitle("Amount PersonalInjury for Personal vechicles for Average Risk classes")
+
+ggplot(data = autoclaims[ grepl("H$", x = autoclaims$RiskClass) & autoclaims$Type  == "Personal", , drop = F]) + geom_line(aes( x = YearQtr, y = AmountPersonalInjury , color = RiskClass)) + ggtitle("Amount PersonalInjury for Personal vechicles for High Risk classes")
+
+
+ggplot(data = autoclaims[ grepl("L$", x = autoclaims$RiskClass) & autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = AmountPersonalInjury , color = RiskClass)) + ggtitle("Amount PersonalInjury for Commercial vechicles for Low Risk classes ")
+
+ggplot(data = autoclaims[ grepl("A$", x = autoclaims$RiskClass) & autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = AmountPersonalInjury , color = RiskClass)) + ggtitle("Amount PersonalInjury for Commercial vechicles for Average Risk classes ")
+
+ggplot(data = autoclaims[ grepl("H$", x = autoclaims$RiskClass) & autoclaims$Type  == "Commercial", , drop = F]) + geom_line(aes( x = YearQtr, y = AmountPersonalInjury , color = RiskClass)) + ggtitle("Amount PersonalInjury for Commercial vechicles for High Risk classes")
+```
+
+The low risk class has small oscilation but can be large for the other two
+
+## All Risk Classes and types aggregated together
+
+```{r}
+
+# But if we aggregate The Risk classes??
+autoclaims.Qtrly <- aggregate(. ~ Year + Qtr+ YearQtr, autoclaims[, !(names(autoclaims) %in% c("Type", "RiskClass") )], FUN = sum)
+
+melt.autoclaims.Qtrly <- melt(autoclaims.Qtrly, id = c("Year", "Qtr", "YearQtr"))
+ggplot(data = melt.autoclaims.Qtrly[ !(melt.autoclaims.Qtrly$variable %in% c("TotalExposure", "ExposureNormalize", "NoPropertyDamage",
+                                                                             "NoComprehensive", "NoCollision", "NoBodilyInjury", "NoPersonalInjury", "CarYearsOfExposure")), ]) + geom_line(aes( x = YearQtr, y = value, color = variable )) 
+
+ggplot(data = melt.autoclaims.Qtrly[ !(melt.autoclaims.Qtrly$variable %in% c("TotalExposure", "ExposureNormalize", "AmountPropertyDamage",
+                                                                             "AmountComprehensive", "AmountCollision", "AmountBodilyInjury", "AmountPersonalInjury")), ]) + geom_line(aes( x = YearQtr, y = value, color = variable )) 
+
+
+ggplot(data = melt.autoclaims.Qtrly[ !(melt.autoclaims.Qtrly$variable %in% c("TotalExposure", "ExposureNormalize", "AmountPropertyDamage",
+                                                                             "AmountComprehensive", "AmountCollision", "AmountBodilyInjury", "AmountPersonalInjury", "CarYearsOfExposure")), ]) + geom_line(aes( x = YearQtr, y = value, color = variable )) 
+
+```
+
+
+When looked at the whole policies as one the spikes disappear (but there is some seasonality) but there is still a spike at year 2010 quarter 3. So this one is definitely an outlier and needs to be replaced by some method or deleted.
+
+
+## Looking into proportions 
+
+To the porportions of the claim amount in each group stay relatively the same?
+
+```{r,fig.align = "center", out.width = '120%'}
+
+autoclaims$totalNoClaims <-0 
+for( i in levels(factor(autoclaims$Year))){
+  for(j in levels(factor(autoclaims$Qtr))){
+    
+    autoclaims$totalNoClaims[autoclaims$Year == i & autoclaims$Qtr == j] <- sum(autoclaims$NoBodilyInjury[autoclaims$Year == i & autoclaims$Qtr == j] ) +
+      sum(autoclaims$NoPropertyDamage[autoclaims$Year == i & autoclaims$Qtr == j] ) +
+    sum(autoclaims$NoComprehensive[autoclaims$Year == i & autoclaims$Qtr == j] ) +
+      sum(autoclaims$NoCollision[autoclaims$Year == i & autoclaims$Qtr == j] ) +
+      sum(autoclaims$NoPersonalInjury[autoclaims$Year == i & autoclaims$Qtr == j] )
+    
+  }
+}
+# total number of claims
+autoclaims$NoBodilyInjuryProp <- autoclaims$NoBodilyInjury/autoclaims$totalNoClaims
+autoclaims$NoPropertyDamageProp <- autoclaims$NoPropertyDamage/autoclaims$totalNoClaims
+autoclaims$NoComprehensiveProp <- autoclaims$NoComprehensive/autoclaims$totalNoClaims
+autoclaims$NoCollisionProp <- autoclaims$NoCollision/autoclaims$totalNoClaims
+autoclaims$NoPersonalInjuryProp <- autoclaims$NoPersonalInjury/autoclaims$totalNoClaims
+
+# Total Expsoure prop
+autoclaims$NoBodilyInjuryPropE <- autoclaims$NoBodilyInjury/autoclaims$TotalExposure
+autoclaims$NoPropertyDamagePropE <- autoclaims$NoPropertyDamage/autoclaims$TotalExposure
+autoclaims$NoComprehensivePropE <- autoclaims$NoComprehensive/autoclaims$TotalExposure
+autoclaims$NoCollisionPropE <- autoclaims$NoCollision/autoclaims$TotalExposure
+autoclaims$NoPersonalInjuryPropE <- autoclaims$NoPersonalInjury/autoclaims$TotalExposure
+
+# data frame only with prop  yearly qtr
+autoclaims.prop <- autoclaims[, names(autoclaims) %in% c("YearQtr", "RiskClass", "Type", "NoBodilyInjuryProp", "NoPropertyDamageProp", "NoComprehensiveProp", "NoCollisionProp", "NoPersonalInjuryProp"), drop = F]
+
+# data frame only with propE and yearly qtr
+autoclaims.propE <- autoclaims[, names(autoclaims) %in% c("YearQtr", "RiskClass", "Type", "NoBodilyInjuryPropE", "NoPropertyDamagePropE", "NoComprehensivePropE", "NoCollisionPropE", "NoPersonalInjuryPropE"), drop = F]
+
+
+melt.autoclaims.prop <- melt(autoclaims.prop, id = c("YearQtr", "RiskClass", "Type"))
+
+ggplot(data = melt.autoclaims.prop[melt.autoclaims.prop$Type == "Personal" ,]) + geom_line(aes(x = YearQtr, y = value, color =RiskClass)) + facet_wrap(. ~variable, scales = "free") + ggtitle("Proportion of total claims for Personal ")+ 
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          legend.text=element_text(size=6)) +
+    guides(col = guide_legend(ncol = 2, byrow = F)) 
+
+ggplot(data = melt.autoclaims.prop[melt.autoclaims.prop$Type == "Commercial",]) + geom_line(aes(x = YearQtr, y = value, color =RiskClass)) + facet_wrap(. ~variable, scales = "free") + ggtitle("Proportion of total claims for Commercial ")+ 
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          legend.text=element_text(size=6)) +
+    guides(col = guide_legend(ncol = 2, byrow = F)) 
+
+
+
+melt.autoclaims.propE <- melt(autoclaims.propE, id = c("YearQtr", "RiskClass", "Type"))
+
+ggplot(data = melt.autoclaims.propE[melt.autoclaims.propE$Type == "Personal",]) + geom_line(aes(x = YearQtr, y = value, color =RiskClass)) + facet_wrap(. ~variable, scales = "free") + ggtitle("Proportion of total Exposure for Personal ")+ 
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          legend.text=element_text(size=6)) +
+    guides(col = guide_legend(ncol = 2, byrow = F)) 
+
+ggplot(data = melt.autoclaims.propE[melt.autoclaims.propE$Type == "Commercial",]) + geom_line(aes(x = YearQtr, y = value, color =RiskClass)) + facet_wrap(. ~variable, scales = "free") + ggtitle("Proportion of total Exposure for Commercial ")+ 
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          legend.text=element_text(size=6)) +
+    guides(col = guide_legend(ncol = 2, byrow = F)) 
+
+```
+
+Again so clustered Lets look at the drivers Risk
+
+
+```{r, fig.align = "center", out.width = '120%'}
+ggplot(data = melt.autoclaims.prop[melt.autoclaims.prop$Type == "Personal" & grepl("H$", x = melt.autoclaims.prop$RiskClass),]) + geom_line(aes(x = YearQtr, y = value, color =RiskClass)) + facet_wrap(. ~variable, scales = "free") + ggtitle("Proportion of total claims for Personal for high Risk ")+ 
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          legend.text=element_text(size=6)) +
+    guides(col = guide_legend(ncol = 2, byrow = F))
+
+ggplot(data = melt.autoclaims.prop[melt.autoclaims.prop$Type == "Personal" & grepl("A$", x = melt.autoclaims.prop$RiskClass),]) + geom_line(aes(x = YearQtr, y = value, color =RiskClass)) + facet_wrap(. ~variable, scales = "free") + ggtitle("Proportion of total claims for Personal for Average Risk ")+ 
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          legend.text=element_text(size=6)) +
+    guides(col = guide_legend(ncol = 2, byrow = F))
+
+ggplot(data = melt.autoclaims.prop[melt.autoclaims.prop$Type == "Personal" & grepl("L$", x = melt.autoclaims.prop$RiskClass),]) + geom_line(aes(x = YearQtr, y = value, color =RiskClass)) + facet_wrap(. ~variable, scales = "free") + ggtitle("Proportion of total claims for Personal for Low Risk ")+ 
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          legend.text=element_text(size=6)) +
+    guides(col = guide_legend(ncol = 2, byrow = F))
+```
+
+Constant proprotions over seasons, but can be a lot of varation for one year (oscillations). Looks like the spikes are higher for high risk driver classes.
+
+## Plot summary
+
+We see a lot of oscillations especially for High Risk drivers depending on the quarter. But when everything is aggregated together there is only one sign of an outlier. The same goes for the proportions. The proportions seem stable but they can vary a lot depending on the season (quarter). From the porportion we can also see a spike at the outlier. The claim porportion goes down except for the Comprehensive variable as expected.
+
+
+

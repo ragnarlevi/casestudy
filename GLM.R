@@ -34,11 +34,12 @@ autocar$DriverRisk <- as.factor(autocar$DriverRisk)
 glm <- list()
 
 #Model number of claims in every claim category
-glm$ol$Number$Model$BI <- glm(data = autocar, formula = NC_BI~Qtr+Type+VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
-glm$ol$Number$Model$PD <- glm(data = autocar, formula = NC_PD~Qtr+Type+VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
-glm$ol$Number$Model$COM <- glm(data = autocar, formula = NC_COM~Qtr+Type+VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
-glm$ol$Number$Model$COL <- glm(data = autocar, formula = NC_COL~Qtr+Type+VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
-glm$ol$Number$Model$PI <- glm(data = autocar, formula = NC_PI~Qtr+Type+VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
+glm$ol$Number$Model$BI <- glm(data = autocar, formula = NC_BI ~ Qtr + Type + VehicleSize + DriverAge + DriverRisk + offset(log(Exposure)), family = poisson(link = "log"))
+glm$ol$Number$Model$PD <- glm(data = autocar, formula = NC_PD ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
+glm$ol$Number$Model$COM <- glm(data = autocar, formula = NC_COM ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
+glm$ol$Number$Model$COL <- glm(data = autocar, formula = NC_COL ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
+glm$ol$Number$Model$PI <- glm(data = autocar, formula = NC_PI ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
+
 
 #show results
 glm$ol
@@ -49,3 +50,9 @@ glm$ol$Amount$Model$BI <- glm(data = autocar, formula = AC_BI~Qtr+Type+VehicleSi
 
 summary(glm$ol$Amount$Model$BI)
 exp(9.89-0.13)
+
+
+
+
+
+

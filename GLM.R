@@ -45,14 +45,46 @@ glm$ol$Number$Model$PI <- glm(data = autocar, formula = NC_PI ~ Qtr + Type + Veh
 glm$ol
 summary(glm$ol$Number$Model$BI)
 
-#Model amounts
-glm$ol$Amount$Model$BI <- glm(data = autocar, formula = AC_BI~Qtr+Type+VehicleSize+DriverAge+DriverRisk+ offset(log(NC_BI)), family = poisson(link = "log"))
-
-summary(glm$ol$Amount$Model$BI)
-exp(9.89-0.13)
 
 
+#First, we create a new variable called average claim amount = Total Claim Amount / Number of Claims
+autocar$AAC_BI <- autocar$AC_BI/autocar$NC_BI
+autocar$AAC_PD <- autocar$AC_PD/autocar$NC_PD
+autocar$AAC_COM <- autocar$AC_COM/autocar$NC_COM
+autocar$AAC_COL <- autocar$AC_COL/autocar$NC_COL
+autocar$AAC_PI <- autocar$AC_PI/autocar$NC_PI
 
 
+#Model average amounts using gamma glm
+glm$ol$Amount$Model$BI <- glm(data = autocar, formula = AAC_BI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = Gamma(link = "log"), weights = NC_BI)
+glm$ol$Amount$Model$PD <- glm(data = autocar, formula = AAC_PD~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = Gamma(link = "log"), weights = NC_PD)
+glm$ol$Amount$Model$COM <- glm(data = autocar, formula = AAC_COM~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = Gamma(link = "log"), weights = NC_COM)
+glm$ol$Amount$Model$COL <- glm(data = autocar, formula = AAC_COL~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = Gamma(link = "log"), weights = NC_COL)
+glm$ol$Amount$Model$PI <- glm(data = autocar, formula = AAC_PI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = Gamma(link = "log"), weights = NC_PI)
+
+summary(glm$ol$Amount$Model$PI)
+
+
+# linear Regression
+autocar$time <- autocar$Year + 2.5*as.numeric(autocar$Qtr)/10
+
+autocar$time
+
+melt.autocar <- melt(autocar[, names(autocar) %in% c("time", "AC_COM", "RiskClass", "Type")] , id = c("Type", "RiskClass", "time"))
+ggplot(melt.autocar[melt.autocar$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+  geom_point(aes(2010.75,0))
+
+# linear regression for amount comprehensive and number comprehnsive
+lm <- list()
+autocar.tmp <- autocar[autocar$time != 2010.75,]
+View(autocar.tmp)
+
+
+# need to do so for each risk class, Put it in a list and make it with a forloop, and for 
+
+for(i in autocar.tmp$RiskClass){
+  lm[[i]] <- lm(AC_COM ~ factor(time)+ factor(Qtr), data = autocar.tmp[])
+  
+}
 
 

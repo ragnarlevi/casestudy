@@ -161,9 +161,9 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
   }
 }
 
-multiplot(p1,p2, plotlist = NULL, cols = 1)
+# multiplot(p1,p2, plotlist = NULL, cols = 1)
 
-multiplot(p3,p4, plotlist = NULL, cols = 1)
+# multiplot(p3,p4, plotlist = NULL, cols = 1)
 
 
 
@@ -189,3 +189,241 @@ glm$rd$Amount$Model$PI <- glm(data = autocar.refined, formula = AAC_PI~Qtr+Type+
 
 summary(glm$rd$Amount$Model$PI)
 
+
+# Next we need to get our estimates
+library(dplyr) # library that contains data frames to join data frames
+
+
+# Declare help functions
+# CHeck if a numeric is empty or not
+isEmpty <- function(x) {
+  return(identical(x, numeric(0)))
+}
+
+calcEstimates <- function(df, model){
+  # df data frame with our information
+  # model, list of number or amount models
+  
+  
+  # appends corresponding estimates to the df
+  df$estimate <- 0
+  
+  for(i in 1:dim(df)[1]){
+    # Just to get shorter name
+   
+    tmp <- as.data.frame(model[[df$coverage[i]]]$coefficient)
+    names(tmp) <- c("coef")
+    # intercept is always the same
+    beta_intercept <-  tmp$coef[rownames(tmp) == "(Intercept)"]
+    
+    
+    
+    # Qtr
+    tmp.qtr <- as.numeric(df$Qtr[i])
+    tmp.qtr <- paste("Qtr",tmp.qtr, sep ="")
+    if(isEmpty(tmp$coef[rownames(tmp) == tmp.qtr])){
+      # is empty
+      beta_qtr <- 0
+    }else{
+      # not empy
+      beta_qtr <- tmp$coef[rownames(tmp) == tmp.qtr]
+    }
+    
+    # Type
+    tmp.type <- as.character(df$Type[i])
+    tmp.type <- paste("Type",tmp.type, sep ="")
+    if(isEmpty(tmp$coef[rownames(tmp) == tmp.type])){
+      # is empty
+      beta_type <- 0
+    }else{
+      # not empy
+      beta_type <- tmp$coef[rownames(tmp) == tmp.type]
+    }
+    
+    # VehicleSize
+    # First letter
+    tmp.size <- toupper(substr(df$RiskClass[i],1,1))
+    tmp.size <- paste("VehicleSize",tmp.size, sep ="")
+    if(isEmpty(tmp$coef[rownames(tmp) == tmp.size])){
+      # is empty
+      beta_size <- 0
+    }else{
+      # not empy
+      beta_size <- tmp$coef[rownames(tmp) == tmp.size]
+    }
+    
+    # VehicleAge
+    # second letter
+    tmp.age <- toupper(substr(df$RiskClass[i],2,2))
+    tmp.age <- paste("VehicleRisk",tmp.age, sep ="")
+    if(isEmpty(tmp$coef[rownames(tmp) == tmp.age])){
+      # is empty
+      beta_age <- 0
+    }else{
+      # not empy
+      beta_age <- tmp$coef[rownames(tmp) == tmp.age]
+    }
+    
+    
+    
+    # VehicleRisk
+    # third letter
+    tmp.risk <- toupper(substr(df$RiskClass[i],3,3))
+    tmp.risk <- paste("VehicleRisk",tmp.risk, sep ="")
+    if(isEmpty(tmp$coef[rownames(tmp) == tmp.risk])){
+      # is empty
+      beta_risk <- 0
+    }else{
+      # not empy
+      beta_risk <- tmp$coef[rownames(tmp) == tmp.risk]
+    }
+    
+    
+    # Finnaly we insert our esitmate
+    df$estimate[i] <- exp(beta_intercept + beta_qtr + beta_type + beta_size + beta_age + beta_risk)
+    
+  }
+  
+  return(df)
+}
+
+
+GetEstimates <- function(Data.List, m){
+  # Data.list for example gld$rd
+  # m, "Number" or "Amount"
+
+
+  
+  # get namse of  coverage (policies)
+  df.1 <- data.frame(coverage = names(Data.List[[m]]$Model))
+  # Type
+  df.2 <- data.frame(Type = unique(autocar$Type))
+  # Risk Classes
+  df.3 <- data.frame(RiskClass = unique(autocar$RiskClass))
+  # quarters
+  df.4 <- data.frame(Qtr = c(1,2,3,4))
+  
+  
+  df <- merge(df.1, df.2)
+  df <- merge(df, df.3)
+  df <- merge(df, df.4)
+  # should be 1080 rows....1080 estimates wooppyy
+  
+  df <- calcEstimates(df = df, model = Data.List[[m]]$Model)
+  # change the Names
+  if(m == "Number"){
+    names(df)[names(df) == "estimate"] <- "NPerExposure"
+  }else{
+    names(df)[names(df) == "estimate"] <- "AAC"
+  }
+  
+  return(df)
+
+  
+}
+
+
+
+
+
+
+# Create functions that Can Will ltake different growth rates and list to speculate about the future
+
+EstimateGrowth <- function(Data.List, growth, time.frame = 1, df){
+  # Data.List is our list with one scenario. Exaple Data.List = glm$rd if we want to see how our refined data behaves
+  # growth is a list if FUNCTIONS that explains the growth for each Risk Class
+  # time.frame is vector/numeric measured in years for each year there are 4 quarters. Default value is prediction for one year
+  # df is the dataframe we want to append our new predictions (probably will always be autocar raw data)
+  
+  
+  
+  # get estimates
+  Data.List$Number$df <- GetEstimates(Data.List = Data.List, m = "Number")
+  Data.List$Amount$df <- GetEstimates(Data.List = Data.List, m = "Amount")
+
+  
+  df.number <- Data.List$Number$df
+  df.amount <- Data.List$Amount$df
+  start.year <- max(as.numeric(df$Year))
+  # append to Our data.Frame 
+  for( i in time.frame){
+    # This for loop counts time
+    
+    for(j in 1:dim(df.number)[1]){
+      # Create tmp data.frame. This tmp df will be added to the prediction data frame once every missing value has been filled 
+      tmp <- df[1,]
+      tmp$Year <- start.year + time.frame[i]
+      tmp$Qtr <- df.number$Qtr[j]
+      tmp$RiskClass <- df.number$RiskClass[j]
+      tmp$Type <- df.number$Type[j]
+      # Here is where the fun part comes/ this is something we really don't know about
+      bool <- df$Year == start.year & df$Qtr == tmp$Qtr & df$RiskClass == tmp$RiskClass & df$Type == tmp$Type
+      tmp$Exposure <- growth(exposure = df$Exposure[bool])
+      # add numbers
+      # We need to get right row
+      bool <- df.number$Type == tmp$Type & df.number$RiskClass == tmp$RiskClass & df.number$Qtr == tmp$Qtr
+      tmp$NC_BI <- tmp$Exposure*df.number$NPerExposure[df.number$coverage == "BI" & bool]
+      tmp$NC_PD <- tmp$Exposure*df.number$NPerExposure[df.number$coverage == "PD" & bool]
+      tmp$NC_COM <- tmp$Exposure*df.number$NPerExposure[df.number$coverage == "COM" & bool]
+      tmp$NC_COL <- tmp$Exposure*df.number$NPerExposure[df.number$coverage == "COL" & bool]
+      tmp$NC_PI <- tmp$Exposure*df.number$NPerExposure[df.number$coverage == "PI" & bool]
+      
+      # and for the amount
+      bool <- df.amount$Type == tmp$Type & df.amount$RiskClass == tmp$RiskClass & df.amount$Qtr == tmp$Qtr
+      tmp$AC_BI <- df.amount$AAC[df.amount$coverage == "BI" & bool]*tmp$NC_BI
+      tmp$AC_PD <- df.amount$AAC[df.amount$coverage == "PD" & bool]*tmp$NC_PD
+      tmp$AC_COM <- df.amount$AAC[df.amount$coverage == "COM" & bool]*tmp$NC_COM
+      tmp$AC_COL <- df.amount$AAC[df.amount$coverage == "COL" & bool]*tmp$NC_COL
+      tmp$AC_PI <- df.amount$AAC[df.amount$coverage == "PI" & bool]*tmp$NC_PI
+      
+      
+      # Finnaly append it to the data frame
+      
+      df <- rbind(df, tmp)
+      
+    }
+    
+  }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  # We Return a list with the information needed
+  ret <- list()
+  ret$prediction <- df
+  ret$Data.List <- Data.List
+  return(ret)
+  
+}
+
+growth <- function(t = 1, exposure){
+  # growth rate is dependent on time
+  
+  
+  return(exposure)
+}
+time.frame <- 1:10
+
+test <- EstimateGrowth(Data.List = glm$rd, growth = growth, time.frame = time.frame, df = autocar)
+
+
+# plot to test
+
+tmp <- test$prediction
+tmp$time <- tmp$Year + 2.5*as.numeric(tmp$Qtr)/10
+# Compare
+melt.tmp <- melt(tmp[, names(tmp) %in% c("time", "AC_COM", "RiskClass", "Type", "NC_COM")] , id = c("Type", "RiskClass", "time"))
+
+# Figure For Personal types
+p1 <- ggplot(melt.tmp[melt.tmp$Type == "Personal",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+  facet_wrap( ~ variable, scales = "free") + ggtitle("Personal raw data")
+p1

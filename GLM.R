@@ -34,11 +34,11 @@ autocar$DriverRisk <- as.factor(autocar$DriverRisk)
 glm <- list()
 
 #Model number of claims in every claim category
-glm$ol$Number$Model$BI <- glm(data = autocar, formula = NC_BI ~ Qtr + Type + VehicleSize + DriverAge + DriverRisk + offset(log(Exposure)), family = poisson(link = "log"))
-glm$ol$Number$Model$PD <- glm(data = autocar, formula = NC_PD ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
-glm$ol$Number$Model$COM <- glm(data = autocar, formula = NC_COM ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
-glm$ol$Number$Model$COL <- glm(data = autocar, formula = NC_COL ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
-glm$ol$Number$Model$PI <- glm(data = autocar, formula = NC_PI ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = poisson(link = "log"))
+glm$ol$Number$Model$BI <- glm(data = autocar, formula = NC_BI ~ Qtr + Type + VehicleSize + DriverAge + DriverRisk + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+glm$ol$Number$Model$PD <- glm(data = autocar, formula = NC_PD ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+glm$ol$Number$Model$COM <- glm(data = autocar, formula = NC_COM ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+glm$ol$Number$Model$COL <- glm(data = autocar, formula = NC_COL ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+glm$ol$Number$Model$PI <- glm(data = autocar, formula = NC_PI ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
 
 
 #show results
@@ -56,11 +56,11 @@ autocar$AAC_PI <- autocar$AC_PI/autocar$NC_PI
 
 
 #Model average amounts using gamma glm
-glm$ol$Amount$Model$BI <- glm(data = autocar, formula = AAC_BI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = Gamma(link = "log"), weights = NC_BI)
-glm$ol$Amount$Model$PD <- glm(data = autocar, formula = AAC_PD~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = Gamma(link = "log"), weights = NC_PD)
-glm$ol$Amount$Model$COM <- glm(data = autocar, formula = AAC_COM~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = Gamma(link = "log"), weights = NC_COM)
-glm$ol$Amount$Model$COL <- glm(data = autocar, formula = AAC_COL~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = Gamma(link = "log"), weights = NC_COL)
-glm$ol$Amount$Model$PI <- glm(data = autocar, formula = AAC_PI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = Gamma(link = "log"), weights = NC_PI)
+glm$ol$Amount$Model$BI <- glm(data = autocar, formula = AAC_BI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_BI)
+glm$ol$Amount$Model$PD <- glm(data = autocar, formula = AAC_PD~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_PD)
+glm$ol$Amount$Model$COM <- glm(data = autocar, formula = AAC_COM~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_COM)
+glm$ol$Amount$Model$COL <- glm(data = autocar, formula = AAC_COL~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_COL)
+glm$ol$Amount$Model$PI <- glm(data = autocar, formula = AAC_PI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_PI)
 
 summary(glm$ol$Amount$Model$PI)
 
@@ -78,7 +78,8 @@ lm.no.outlier <- list()
 autocar.tmp <- autocar[autocar$time != 2010.75,]
 #View(autocar.tmp)
 
-
+library(reshape2)
+library(ggplot2)
 # need to do so for each risk class and each type, Put it in a list and make it with a for loop
 
 for(j in unique(as.character(autocar.tmp$Type))){
@@ -163,4 +164,28 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 multiplot(p1,p2, plotlist = NULL, cols = 1)
 
 multiplot(p3,p4, plotlist = NULL, cols = 1)
+
+
+
+#Perform GLM's for refined data (after adjusting the outlier)
+
+#Model number of claims in every claim category
+glm$rd$Number$Model$BI <- glm(data = autocar.refined, formula = NC_BI ~ Qtr + Type + VehicleSize + DriverAge + DriverRisk + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+glm$rd$Number$Model$PD <- glm(data = autocar.refined, formula = NC_PD ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+glm$rd$Number$Model$COM <- glm(data = autocar.refined, formula = NC_COM ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+glm$rd$Number$Model$COL <- glm(data = autocar.refined, formula = NC_COL ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+glm$rd$Number$Model$PI <- glm(data = autocar.refined, formula = NC_PI ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+
+#show results
+glm$rd
+summary(glm$ol$Number$Model$BI)
+
+#Model average amounts using gamma glm (for refined data)
+glm$rd$Amount$Model$BI <- glm(data = autocar.refined, formula = AAC_BI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_BI)
+glm$rd$Amount$Model$PD <- glm(data = autocar.refined, formula = AAC_PD~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_PD)
+glm$rd$Amount$Model$COM <- glm(data = autocar.refined, formula = AAC_COM~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_COM)
+glm$rd$Amount$Model$COL <- glm(data = autocar.refined, formula = AAC_COL~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_COL)
+glm$rd$Amount$Model$PI <- glm(data = autocar.refined, formula = AAC_PI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_PI)
+
+summary(glm$rd$Amount$Model$PI)
 

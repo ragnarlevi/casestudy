@@ -5,7 +5,7 @@ require(GGally)
 require(reshape2)
 # set wd
 getwd()
-setwd("C:/Users/Johniemein/Downloads")
+setwd()
 
 # read data, skip = Minimum number of rows to skip before reading anything, be it column names or data
 autoclaims <- read_excel("2019-student-research-case-study-data.xlsx", skip = 9)

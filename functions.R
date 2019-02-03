@@ -47,10 +47,10 @@ isEmpty <- function(x) {
 calcEstimates <- function(df.main, model){
   # df.main data frame with our information
   # model, list of number or amount models
+
   
   
-  # appends corresponding estimates to the df.main
-  df.main$estimate <- 0
+  
   
   for(i in 1:dim(df.main)[1]){
     # Just to get shorter name
@@ -138,23 +138,25 @@ GetEstimates <- function(Data.List, m){
   # Data.list for example gld$rd
   # m, "Number" or "Amount"
   
-  
-  
-  # get namse of  coverage (policies)
+  # coverage
   df.1 <- data.frame(coverage = names(Data.List[[m]]$Model))
   # Type
   df.2 <- data.frame(Type = unique(autocar$Type))
   # Risk Classes
   df.3 <- data.frame(RiskClass = unique(autocar$RiskClass))
   # quarters
-  df.4 <- data.frame(Qtr = c(1,2,3,4))
-  
+  df.4 <- data.frame(Qtr = c("1","2","3","4"))
   
   df.main <- merge(df.1, df.2)
   df.main <- merge(df.main, df.3)
   df.main <- merge(df.main, df.4)
   df.main <- as.data.frame(df.main)
-  # should be 1080 rows....1080 estimates wooppyy
+  # df.main$VehicleSize <- substr(df.main$RiskClass,1,1)
+  # df.main$DriverAge <- substr(df.main$RiskClass,2,2)
+  # df.main$DriverRisk <- substr(df.main$RiskClass,3,3)
+  # df.main$Exposure <- 1
+  # predict( object = model$BI , newdata =df.main)
+  
   
   df.main <- calcEstimates(df.main = df.main, model = Data.List[[m]]$Model)
   # change the Names
@@ -168,20 +170,22 @@ GetEstimates <- function(Data.List, m){
   
   
 }
-
-loop.fun <- function(j, i, df.main, loop.df, growth, start.year, df.number, df.amount){
+loop.fun <- function(j, i, df.main, loop.df, growth, start.year, df.number, df.amount, exposure){
   tmp <- df.main[1,]
   tmp$Year <- start.year + time.frame[i]
   tmp$Qtr <- loop.df$Qtr[j]
   tmp$RiskClass <- as.character(loop.df$RiskClass[j])
   tmp$Type <- as.character(loop.df$Type[j])
+  tmp$Autonomy <-  loop.df$Autonomy[j]
+  myvar <<- tmp
   # Here is where the fun part comes/ this is something we really don't know about
-  bool <- df.main$Year == start.year & df.main$Qtr == tmp$Qtr & df.main$RiskClass == tmp$RiskClass & df.main$Type == tmp$Type
-  tmp$Exposure <- growth(Type = tmp$Type,
-                         Qtr = tmp$Qtr,
-                         RiskClass = tmp$RiskClass,
-                         df.main = df.main,
-                         t = 2018)
+   tmp$Exposure <- growth(Type = as.character(tmp$Type),
+                         Qtr = as.numeric(tmp$Qtr),
+                         RiskClass = as.character(tmp$RiskClass),
+                         Year = tmp$Year,
+                         exposure = exposure,
+                         Autonomy = as.character(tmp$Autonomy)
+                         )
   # add numbers
   # We need to get right row
   bool <- df.number$Type == tmp$Type & df.number$RiskClass == tmp$RiskClass & df.number$Qtr == tmp$Qtr
@@ -202,7 +206,7 @@ loop.fun <- function(j, i, df.main, loop.df, growth, start.year, df.number, df.a
 }
 
 
-EstimateGrowth <- function(Data.List, growth, time.frame = 1, df.main, lapply.Fun, ...){
+EstimateGrowth <- function(Data.List, growth, time.frame = 1, df.main, lapply.Fun, exposure = exposure){
   # Data.List is our list with one scenario. Exaple Data.List = glm$rd if we want to see how our refined data behaves
   # growth is a list if FUNCTIONS that explains the growth for each Risk Class
   # time.frame is vector/numeric measured in years for each year there are 4 quarters. Default value is prediction for one year
@@ -225,9 +229,11 @@ EstimateGrowth <- function(Data.List, growth, time.frame = 1, df.main, lapply.Fu
   df.1 <- data.frame(Type = unique(df.main$Type))
   df.2 <- data.frame(RiskClass = unique(df.main$RiskClass))
   df.3 <- data.frame(Qtr = c(1,2,3,4))
+  df.4 <- data.frame(Autonomy = c("A0", "A1", "A2", "A3", "A4", "A5"))
   
   loop.df <- merge(df.1,df.2)
   loop.df <- merge(loop.df, df.3)
+  loop.df <- merge(loop.df, df.4)
   loop.df <- as.data.frame(loop.df)
   
   # append to Our data.Frame 
@@ -241,9 +247,12 @@ EstimateGrowth <- function(Data.List, growth, time.frame = 1, df.main, lapply.Fu
                 growth = growth, 
                 start.year = start.year,
                 df.amount = df.amount,
-                df.number = df.number)
+                df.number = df.number,
+                exposure = exposure)
     
-   df.main <-  rbind(df.main, do.call(rbind,r))
+    names(df.main)
+    names(do.call(rbind,r))
+    df.main <-  rbind(df.main, do.call(rbind,r))
     
     
   }
@@ -258,3 +267,32 @@ EstimateGrowth <- function(Data.List, growth, time.frame = 1, df.main, lapply.Fu
   return(ret)
   
 }
+
+
+findProportions <- function(df.main){
+  
+  df.main$prop <- 0
+  
+  years <- unique(df.main$Year)
+  for(i in years){
+    for(j in 1:4){
+      te.p <- sum(df.main$Exposure[df.main$Qtr == j & df.main$Year == i & df.main$Type == "Personal"])
+      te.c <- sum(df.main$Exposure[df.main$Qtr == j & df.main$Year == i & df.main$Type == "Commercial"])
+      df.main$prop[df.main$Qtr == j & df.main$Type == "Personal" & df.main$Year == i] <-  df.main$Exposure[df.main$Qtr == j & df.main$Type == "Personal" & df.main$Year == i]/te.p
+      df.main$prop[df.main$Qtr == j & df.main$Type == "Commercial" & df.main$Year == i] <-  df.main$Exposure[df.main$Qtr == j & df.main$Type == "Commercial" & df.main$Year == i]/te.c
+      
+    
+      }
+    
+  }
+  return(df.main)
+
+  
+}
+
+
+
+
+
+
+

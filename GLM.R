@@ -1,11 +1,14 @@
-library(readxl)
-autocar <- read_excel("2019-student-research-case-study-data.xlsx", range = "B10:P2170")
-attach(autocar)
 
-names(autocar)
+
+# Read and change names ----
+autocar <- read_excel("2019-student-research-case-study-data.xlsx", range = "B10:P2170")
+
+# names(autocar)
 names(autocar) <- c("Year", "Qtr", "RiskClass", "Type", "Exposure", "NC_BI", "NC_PD", "NC_COM", "NC_COL", 
                        "NC_PI", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI")
 
+
+# Add Variables ----
 #creating factors for vehicle size variable
 autocar$VehicleSize <- ""
 autocar$VehicleSize[grepl("^S", x = autocar$RiskClass)] <- "S" 
@@ -30,6 +33,7 @@ autocar$VehicleSize <- as.factor(autocar$VehicleSize)
 autocar$DriverAge <- as.factor(autocar$DriverAge)
 autocar$DriverRisk <- as.factor(autocar$DriverRisk)
 
+# GLM model ----
 #We make a list of glm's (outlier included) divided into raw data (outlier) and refined data
 glm <- list()
 
@@ -42,8 +46,8 @@ glm$ol$Number$Model$PI <- glm(data = autocar, formula = NC_PI ~ Qtr + Type + Veh
 
 
 #show results
-glm$ol
-summary(glm$ol$Number$Model$BI)
+# glm$ol
+# summary(glm$ol$Number$Model$BI)
 
 
 
@@ -62,10 +66,10 @@ glm$ol$Amount$Model$COM <- glm(data = autocar, formula = AAC_COM~Qtr+Type+Vehicl
 glm$ol$Amount$Model$COL <- glm(data = autocar, formula = AAC_COL~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_COL)
 glm$ol$Amount$Model$PI <- glm(data = autocar, formula = AAC_PI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_PI)
 
-summary(glm$ol$Amount$Model$PI)
+#summary(glm$ol$Amount$Model$PI)
 
 
-# linear Regression
+# Filter the data -----
 autocar$time <- autocar$Year + 2.5*as.numeric(autocar$Qtr)/10
 
 autocar$time
@@ -78,8 +82,6 @@ lm.no.outlier <- list()
 autocar.tmp <- autocar[autocar$time != 2010.75,]
 #View(autocar.tmp)
 
-library(reshape2)
-library(ggplot2)
 # need to do so for each risk class and each type, Put it in a list and make it with a for loop
 
 for(j in unique(as.character(autocar.tmp$Type))){
@@ -113,16 +115,16 @@ for(j in unique(as.character(autocar.tmp$Type))){
 melt.autocar.refined <- melt(autocar.refined[, names(autocar.refined) %in% c("time", "AC_COM", "RiskClass", "Type", "NC_COM")] , id = c("Type", "RiskClass", "time"))
 
 # Figure For Personal types
-p1 <- ggplot(melt.autocar[melt.autocar$Type == "Personal",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
-  geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Personal raw data")
-p2 <- ggplot(melt.autocar.refined[melt.autocar.refined$Type == "Personal",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
-  geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Personal refined data")
+# p1 <- ggplot(melt.autocar[melt.autocar$Type == "Personal",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+#   geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Personal raw data")
+# p2 <- ggplot(melt.autocar.refined[melt.autocar.refined$Type == "Personal",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+#   geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Personal refined data")
 
 # Figure for Commercial types
-p3 <- ggplot(melt.autocar[melt.autocar$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
-  geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Commercial raw data")
-p4 <- ggplot(melt.autocar.refined[melt.autocar.refined$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
-  geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Commercial refined data")
+# p3 <- ggplot(melt.autocar[melt.autocar$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+#   geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Commercial raw data")
+# p4 <- ggplot(melt.autocar.refined[melt.autocar.refined$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+#   geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Commercial refined data")
 
 
 # multiplot(p1,p2, plotlist = NULL, cols = 1)
@@ -153,37 +155,63 @@ glm$rd$Amount$Model$PI <- glm(data = autocar.refined, formula = AAC_PI~Qtr+Type+
 
 summary(glm$rd$Amount$Model$PI)
 
+# Finally get the estimates
+# get estimates
+for(i in 1:length(glm)){
+  glm[[i]]$Number$df <- GetEstimates(Data.List = glm[[i]], m = "Number")
+  glm[[i]]$Amount$df <- GetEstimates(Data.List = glm[[i]], m = "Amount")
+    
+}
 
-# Next we need to get our estimates
-library(dplyr) # library that contains data frames to join data frames
+
+
+
+# Next we need to get our estimates # library that contains data frames to join data frames
 # Call our functions
-source("functions.R")
-source("growthFunctions.R")
 
-
-
-time.frame <- 1:10
-
-test <- EstimateGrowth(Data.List = glm$rd, growth = growth.naive, time.frame = time.frame, df.main = autocar)
-
-
-# plot to test
-
-tmp <- test$prediction
-tmp$time <- tmp$Year + 2.5*as.numeric(tmp$Qtr)/10
-# Compare
-melt.tmp <- melt(tmp[, names(tmp) %in% c("time", "AC_COL", "RiskClass", "Type", "NC_COL")] , id = c("Type", "RiskClass", "time"))
-
-# Figure For Personal types
-p1 <- ggplot(melt.tmp[melt.tmp$Type == "Personal",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
-  facet_wrap( ~ variable, scales = "free") + ggtitle("Personal raw data")
-p1
-
-# are the estimates different?
-
-estimates <- test$Data.List$Number$df
-melt.estimates <- melt(data = estimates, id = c("Qtr", "Type", "RiskClass", "coverage"))
-
-p2 <- ggplot(melt.estimates[melt.estimates$Type == "Personal", ]) + geom_line(aes(x = Qtr, y = value, color = RiskClass))+
-  facet_wrap(. ~ coverage, scales = "free")
-p2
+# df.main <- autocar
+# 
+# 
+# 
+# 
+# # Let's create a new data frame 
+# 
+# # We Need only keep what we realy need
+# SelectColumns <- c("Year", "Qtr", "RiskClass", "Type", "Exposure", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI",
+#                    "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI")
+# df.main <- df.main[, names(df.main) %in% SelectColumns]
+# # add autonomy Column
+# 
+# df.main$Autonomy <- "A0"
+# df.main$AutonomyProp <- 1
+# df.main$prop <- 1
+# 
+# # source what we need
+# source("functions.R")
+# source("growthFunctions.R")
+# 
+# 
+# 
+# test <- EstimateGrowth(Data.List = glm$rd, growth = growth, time.frame = time.frame, df.main = df.main, exposure = exposure.s2)
+# 
+# 
+# # plot to test
+# 
+# tmp <- test$prediction
+# tmp$time <- tmp$Year + 2.5*as.numeric(tmp$Qtr)/10
+# # Compare
+# melt.tmp <- melt(tmp[, names(tmp) %in% c("time", "AC_COL", "RiskClass", "Type", "NC_COL", "Autonomy")] , id = c("Type", "RiskClass", "time", "Autonomy"))
+# 
+# # Figure For Personal types
+# p1 <- ggplot(melt.tmp[melt.tmp$Type == "Personal" & melt.tmp$Autonomy == "A0",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+#   facet_wrap( ~ variable, scales = "free") + ggtitle("Personal raw data") + geom_vline(xintercept = 2019)
+# p1
+# 
+# # are the estimates different?
+# 
+# estimates <- test$Data.List$Number$df
+# 
+# 
+# agg <- aggregate(formula = . ~ Autonomy + time, data = tmp[, names(tmp) %in% c("time", "Autonomy", "Exposure")] , FUN = sum)
+# 
+# ggplot(agg) + geom_line(aes(x = time, y = Exposure, color = Autonomy))

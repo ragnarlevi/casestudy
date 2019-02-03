@@ -84,7 +84,85 @@ autonomyPremium <- function(estimates.A0, type = "same", time.frame = 0:20, star
 }
 
 
+aut.prem <- function(glm.list, type = "glm.original", predict.df ){
+  
+  if(type == "glm.original"){
 
+    # We also need to Add vehicle Size and stuff
+    #creating factors for vehicle size variable
+    predict.df$VehicleSize <- ""
+    predict.df$VehicleSize[grepl("^S", x = predict.df$RiskClass)] <- "S" 
+    predict.df$VehicleSize[grepl("^M", x = predict.df$RiskClass)] <- "M" 
+    predict.df$VehicleSize[grepl("^L", x = predict.df$RiskClass)] <- "L" 
+    
+    #creating factors for driver age variable
+    predict.df$DriverAge <- ""
+    predict.df$DriverAge[grepl("^.Y", x = predict.df$RiskClass)] <- "Y"
+    predict.df$DriverAge[grepl("^.M", x = predict.df$RiskClass)] <- "M"
+    predict.df$DriverAge[grepl("^.S", x = predict.df$RiskClass)] <- "S"
+    
+    #creating factors for driver risk variable
+    predict.df$DriverRisk <- ""
+    predict.df$DriverRisk[grepl("^..L", x = predict.df$RiskClass)] <- "L"
+    predict.df$DriverRisk[grepl("^..A", x = predict.df$RiskClass)] <- "A"
+    predict.df$DriverRisk[grepl("^..H", x = predict.df$RiskClass)] <- "H"
+    
+    # set facctor variables
+    predict.df$Qtr <- factor(predict.df$Qtr)
+    # initialize
+    predict.df$AC_BI[predict.df$Autonomy == i] <- 0
+    predict.df$AC_PD[predict.df$Autonomy == i] <- 0
+    predict.df$AC_COM[predict.df$Autonomy == i] <- 0
+    predict.df$AC_COL[predict.df$Autonomy == i] <- 0
+    predict.df$AC_PI[predict.df$Autonomy == i] <- 0
+    
+    
+    
+    for(i in c("A0", "A1", "A2", "A3", "A4", "A5")){
+      # Then we predict
+      # NC
+      predict.df$NC_BI[predict.df$Autonomy == i] <- predict(object = glm.list$Number$Model$BI, newdata = predict.df[predict.df$Autonomy == i,])
+      predict.df$NC_PD[predict.df$Autonomy == i] <- predict(object = glm.list$Number$Model$PD, newdata = predict.df[predict.df$Autonomy == i, ])
+      predict.df$NC_COM[predict.df$Autonomy == i] <- predict(object = glm.list$Number$Model$COM, newdata = predict.df[predict.df$Autonomy == i, ])
+      predict.df$NC_COL[predict.df$Autonomy == i] <- predict(object = glm.list$Number$Model$COL, newdata = predict.df[predict.df$Autonomy == i,])
+      predict.df$NC_PI[predict.df$Autonomy == i] <- predict(object = glm.list$Number$Model$PI, newdata = predict.df[predict.df$Autonomy == i,])
+      # AAC
+      predict.df$AAC_BI[predict.df$Autonomy == i] <- predict(object = glm.list$Amount$Model$BI, newdata = predict.df[predict.df$Autonomy == i,])
+      predict.df$AAC_PD[predict.df$Autonomy == i] <- predict(object = glm.list$Amount$Model$PD, newdata = predict.df[predict.df$Autonomy == i,])
+      predict.df$AAC_COM[predict.df$Autonomy == i] <- predict(object = glm.list$Amount$Model$COM, newdata = predict.df[predict.df$Autonomy == i,])
+      predict.df$AAC_COL[predict.df$Autonomy == i] <- predict(object = glm.list$Amount$Model$COL, newdata = predict.df[predict.df$Autonomy == i,])
+      predict.df$AAC_PI <- predict(object = glm.list$Amount$Model$PI, newdata = predict.df)
+      
+      # Then multiply to find the amount
+      
+      predict.df$AC_BI[predict.df$Autonomy == i] <- predict.df$Exposure[predict.df$Autonomy == i]*predict.df$NC_BI[predict.df$Autonomy == i]*predict.df$AAC_BI[predict.df$Autonomy == i]
+      predict.df$AC_PD[predict.df$Autonomy == i] <- predict.df$Exposure[predict.df$Autonomy == i]*predict.df$NC_PD[predict.df$Autonomy == i]*predict.df$AAC_PD[predict.df$Autonomy == i]
+      predict.df$AC_COM[predict.df$Autonomy == i] <- predict.df$Exposure[predict.df$Autonomy == i]*predict.df$NC_COM[predict.df$Autonomy == i]*predict.df$AAC_COM[predict.df$Autonomy == i]
+      predict.df$AC_COL[predict.df$Autonomy == i] <- predict.df$Exposure[predict.df$Autonomy == i]*predict.df$NC_COL[predict.df$Autonomy == i]*predict.df$AAC_COL[predict.df$Autonomy == i]
+      predict.df$AC_PI[predict.df$Autonomy == i] <- predict.df$Exposure[predict.df$Autonomy == i]*predict.df$NC_PI[predict.df$Autonomy == i]*predict.df$AAC_PI[predict.df$Autonomy == i]
+
+      
+      
+    }
+    
+    # unfactor again
+    predict.df$Qtr <- as.character(predict.df$Qtr)
+    return(predict.df)
+    
+    
+    
+  }else if(type == "multiply"){
+    # We assume we have the Right And thus We just multiply
+    predict.df$AC_BI<- predict.df$Exposure*predict.df$NC_BI*predict.df$AAC_BI
+    predict.df$AC_PD <- predict.df$Exposure*predict.df$NC_PD*predict.df$AAC_PD
+    predict.df$AC_COM <- predict.df$Exposure*predict.df$NC_COM*predict.df$AAC_COM
+    predict.df$AC_COL <- predict.df$Exposure*predict.df$NC_COL*predict.df$AAC_COL
+    predict.df$AC_PI <- predict.df$Exposure*predict.df$NC_PI*predict.df$AAC_PI
+    return(pre)
+    
+  }
+  
+}
 
 
 

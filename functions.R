@@ -177,6 +177,8 @@ loop.fun <- function(j, i, df.main, loop.df, growth, start.year, df.number, df.a
   tmp$RiskClass <- as.character(loop.df$RiskClass[j])
   tmp$Type <- as.character(loop.df$Type[j])
   tmp$Autonomy <-  loop.df$Autonomy[j]
+  
+  
   myvar <<- tmp
   # Here is where the fun part comes/ this is something we really don't know about
    tmp$Exposure <- growth(Type = as.character(tmp$Type),

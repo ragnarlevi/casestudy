@@ -279,7 +279,7 @@ param4 <- c(A0toA1 = 0.1,
             A3toA4 = 0,
             A3toA5 = 0,
             A4toA5 = 0)
-delay.commercial <- c(delay.commercial, max(time.frame) +1)
+delay.commercial <- c(delay.commercial, max(time.frame)+1)
 
 # Finnally add to list the paranm
 param.commercial <- list()
@@ -287,3 +287,82 @@ param.commercial[[1]] <- param1
 param.commercial[[2]] <- param2
 param.commercial[[3]] <- param3
 param.commercial[[4]] <- param4
+
+
+
+
+
+
+
+
+
+# ---- Time dependent parameters example
+autonomyRateContinous <- function(time.frame, func, param, init){
+  # Load deSolve package
+  # time frame, 
+  # func - list of functions
+  # param - list of parameters corresponding to the functions
+  # init - initial starting proportions
+  # delay, vector of when the new model take over, if only one model set D
+  
+  
+  time.frame <- seq(min(time.frame), max(time.frame) + 1, by = 0.25)
+  out <- ode(y = init, times = t, func = func, parms = param)
+  
+  # change to data frame
+  out <- as.data.frame(out)
+  # do A nice graph
+  endTime <- max(time.frame)
+  melt.out <- melt(data = out, id.vars = c("time"))
+  autonomyPlot <- ggplot(data = melt.out) + geom_line(mapping = aes(x = time, y = value, color = variable)) +
+    ggtitle("Projected change in the Autonomy Classes") + ylab("Proportion") +
+    scale_x_continuous(name = "Years", labels = seq(from = 2019, to = endTime + 2019, by = 5)) # numeric so continous x-scale
+  #autonomyPlot
+  
+  ret <- list()
+  ret$out <- out
+  ret$plot <- autonomyPlot
+  
+  return(ret)
+}
+
+# create functions, Remember List
+func1 <- function(time, state, parameters) {
+  
+  with(as.list(c(state, parameters)), {
+    
+    # change = Flow In - FlowOut
+    dA0 <- -A0toA1(time)*A0 - A0toA2*A0 - A0toA3*A0 - A0toA4*A0 - A0toA5*A0 + 500*exp(0.05*time)
+    dA1 <- A0toA1(time)*A0 - A1toA2*A1 - A1toA3*A1 - A1toA4*A1 - A1toA5*A1  + 500*exp(0.05*time)
+    dA2 <- A0toA2*A0 + A1toA2*A1 - A2toA3*A2 - A2toA4*A2 - A2toA5*A2 
+    dA3 <- A0toA3*A0 + A1toA3*A1 + A2toA3*A2 - A3toA4*A3 - A3toA5*A3 
+    dA4 <- A0toA4*A0 + A1toA4*A1 + A2toA4*A2 + A3toA4*A3 - A4toA5*A4 
+    dA5 <- A0toA5*A0 + A1toA5*A1 + A2toA5*A2 + A3toA5*A3 + A4toA5*A4 
+    
+    return(list(c(dA0, dA1, dA2, dA3, dA4, dA5)))
+  })
+}
+
+param4 <- list(A0toA1 = function(t){0.1*exp(0.5*t)},
+            A0toA2 = 0.01,
+            A0toA3 = 0.01,
+            A0toA4 = 0.01,
+            A0toA5 = 0.01,
+            A1toA2 = 0.04,
+            A1toA3 = 0.003,
+            A1toA4 = 0.009,
+            A1toA5 = 0.004,
+            A2toA3 = 0,
+            A2toA4 = 0,
+            A2toA5 = 0,
+            A3toA4 = 0,
+            A3toA5 = 0,
+            A4toA5 = 0)
+init <- c(A0 = 50000, A1 =0, A2 =0, A3 = 0, A4 = 0, A5 = 0)
+t <- seq(0, 20, by = 0.25)
+
+
+tt <- autonomyRateContinous(time.frame = 0:20, func = func1, param = param4, init = init)
+tt$plot
+
+

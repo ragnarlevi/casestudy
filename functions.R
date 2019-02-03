@@ -206,7 +206,7 @@ loop.fun <- function(j, i, df.main, loop.df, growth, start.year, df.number, df.a
 }
 
 
-EstimateGrowth <- function(Data.List, growth, time.frame = 1, df.main, lapply.Fun, exposure = exposure){
+EstimateGrowth <- function(Data.List, growth, time.frame = 0, df.main, lapply.Fun, exposure = exposure){
   # Data.List is our list with one scenario. Exaple Data.List = glm$rd if we want to see how our refined data behaves
   # growth is a list if FUNCTIONS that explains the growth for each Risk Class
   # time.frame is vector/numeric measured in years for each year there are 4 quarters. Default value is prediction for one year
@@ -269,11 +269,13 @@ EstimateGrowth <- function(Data.List, growth, time.frame = 1, df.main, lapply.Fu
 }
 
 
-findProportions <- function(df.main){
+findProportions <- function(df.main, years = NULL){
   
   df.main$prop <- 0
   
-  years <- unique(df.main$Year)
+  if(!is.null(years)){
+    years <- unique(df.main$Year) 
+  }
   for(i in years){
     for(j in 1:4){
       te.p <- sum(df.main$Exposure[df.main$Qtr == j & df.main$Year == i & df.main$Type == "Personal"])

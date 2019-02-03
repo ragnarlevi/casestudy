@@ -12,7 +12,7 @@ autonomyRate <- function(time.frame, func, param, init, delay = NULL){
   # delay, vector of when the new model take over, if only one model set D
   
   
-  time.frame <- seq(min(time.frame), max(time.frame), by = 0.25)
+  time.frame <- seq(min(time.frame), max(time.frame) + 1, by = 0.25)
   # number of parameter changes/models
   number.of.models <- length(param)
   out <- list() # output stored in a list
@@ -164,7 +164,7 @@ param4 <- c(A0toA1 = 0.1,
             A3toA4 = 0,
             A3toA5 = 0,
             A4toA5 = 0)
-delay.personal <- c(delay.personal, max(time.frame))
+delay.personal <- c(delay.personal, max(time.frame) +1)
 
 # Finnally add to list the paranm
 param.personal <- list()
@@ -279,7 +279,7 @@ param4 <- c(A0toA1 = 0.1,
             A3toA4 = 0,
             A3toA5 = 0,
             A4toA5 = 0)
-delay.commercial <- c(delay.commercial, max(time.frame))
+delay.commercial <- c(delay.commercial, max(time.frame) +1)
 
 # Finnally add to list the paranm
 param.commercial <- list()

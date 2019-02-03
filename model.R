@@ -10,7 +10,7 @@ library(svDialogs) # to prompt  user
 user <- dlgInput("Who is using?", Sys.info()["user"])$res
 
 switch(EXPR = user, 
-       R = setwd("C:/Users/ragna/OneDrive/Documents/ISEG/Actuarial Science Courses @ ISEG/case study"))
+       RAGNA = setwd("C:/Users/ragna/OneDrive/Documents/ISEG/Actuarial Science Courses @ ISEG/case study"))
 
 
 
@@ -91,52 +91,68 @@ for(i in 2:length(tmp)){
 
   time <- tmp[i]
   
-  year <- 2019 + floor(time)
+  year <- 2018 + ceiling(time)
   qtr <- (time * 4) %% 4
-  if(qtr == 0){ qtr = 4}
+  if(qtr == 0){ qtr <-  4}
+  print(paste("Year ", year, " ;Qtr ", qtr))
   
-  predict.df$A0_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Personal"] <- autonomyChange$Personal$out$A0[i]
-  predict.df$A1_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Personal"] <- autonomyChange$Personal$out$A1[i]
-  predict.df$A2_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Personal"] <- autonomyChange$Personal$out$A2[i]
-  predict.df$A3_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Personal"] <- autonomyChange$Personal$out$A3[i]
-  predict.df$A4_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Personal"] <- autonomyChange$Personal$out$A4[i]
-  predict.df$A5_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Personal"] <- autonomyChange$Personal$out$A5[i]
+  predict.df$A0_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Personal" & predict.df$Autonomy == "A0"] <- autonomyChange$Personal$out$A0[i]
+  predict.df$A1_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Personal" & predict.df$Autonomy == "A1"] <- autonomyChange$Personal$out$A1[i]
+  predict.df$A2_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Personal" & predict.df$Autonomy == "A2"] <- autonomyChange$Personal$out$A2[i]
+  predict.df$A3_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Personal" & predict.df$Autonomy == "A3"] <- autonomyChange$Personal$out$A3[i]
+  predict.df$A4_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Personal" & predict.df$Autonomy == "A4"] <- autonomyChange$Personal$out$A4[i]
+  predict.df$A5_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Personal" & predict.df$Autonomy == "A5"] <- autonomyChange$Personal$out$A5[i]
   
-  predict.df$A0_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Commercial"] <- autonomyChange$Commercial$out$A0[i]
-  predict.df$A1_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Commercial"] <- autonomyChange$Commercial$out$A1[i]
-  predict.df$A2_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Commercial"] <- autonomyChange$Commercial$out$A2[i]
-  predict.df$A3_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Commercial"] <- autonomyChange$Commercial$out$A3[i]
-  predict.df$A4_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Commercial"] <- autonomyChange$Commercial$out$A4[i]
-  predict.df$A5_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Commercial"] <- autonomyChange$Commercial$out$A5[i]
+  predict.df$A0_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Commercial" & predict.df$Autonomy == "A0"] <- autonomyChange$Commercial$out$A0[i]
+  predict.df$A1_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Commercial" & predict.df$Autonomy == "A1"] <- autonomyChange$Commercial$out$A1[i]
+  predict.df$A2_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Commercial" & predict.df$Autonomy == "A2"] <- autonomyChange$Commercial$out$A2[i]
+  predict.df$A3_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Commercial" & predict.df$Autonomy == "A3"] <- autonomyChange$Commercial$out$A3[i]
+  predict.df$A4_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Commercial" & predict.df$Autonomy == "A4"] <- autonomyChange$Commercial$out$A4[i]
+  predict.df$A5_Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == "Commercial" & predict.df$Autonomy == "A5"] <- autonomyChange$Commercial$out$A5[i]
   
 }
+
+# tmp <- predict.df
+# tmp$time <- predict.df$time <- predict.df$Year + 2.5*as.numeric(predict.df$Qtr)/10
+# 
+# ggplot(tmp[tmp$Type == "Personal" & tmp$RiskClass == "SSH" & tmp$Autonomy == "A5",]) + 
+#   geom_line(mapping = aes(x = time, y = A5_Exposure))
+
+# We need to adjust the exposure by the prop column
+predict.df$A0_Exposure <- predict.df$A0_Exposure*predict.df$prop
+predict.df$A1_Exposure <- predict.df$A1_Exposure*predict.df$prop
+predict.df$A2_Exposure <- predict.df$A2_Exposure*predict.df$prop
+predict.df$A3_Exposure <- predict.df$A3_Exposure*predict.df$prop
+predict.df$A4_Exposure <- predict.df$A4_Exposure*predict.df$prop
+predict.df$A5_Exposure <- predict.df$A5_Exposure*predict.df$prop
 
 
 # We want to bind the known data together with the new, but we need to make sure their columns are the same
 names(predict.df)
 
-old.data <- autocar[, names(autocar) %in% c("Year", "Qtr", "RiskClass", "Type", "Exposure", "NC_BI",
+df.main <- autocar[, names(autocar) %in% c("Year", "Qtr", "RiskClass", "Type", "Exposure", "NC_BI",
                                             "NC_PD", "NC_COM", "NC_COL", "NC_PI", "AAC_BI", "AAC_PD",
                                             "AAC_COM", "AAC_COL", "AAC_PI")]
 # Find the proportion
-old.data <- findProportions(df.main = old.data)
+df.main <- findProportions(df.main = df.main)
 
-old.data$Autonomy <- "A0"
-old.data$A0_Exposure <- old.data$Exposure
-old.data$A1_Exposure <- 0
-old.data$A2_Exposure <- 0
-old.data$A3_Exposure <- 0
-old.data$A4_Exposure <- 0
-old.data$A5_Exposure <- 0
+df.main$Autonomy <- "A0"
+df.main$A0_Exposure <- df.main$Exposure
+df.main$A1_Exposure <- 0
+df.main$A2_Exposure <- 0
+df.main$A3_Exposure <- 0
+df.main$A4_Exposure <- 0
+df.main$A5_Exposure <- 0
 
-# remove exposure columns
-old.data <- old.data[, !(names(old.data) %in% "Exposure")]
+# remove exposure column
+df.main <- df.main[, !(names(df.main) %in% "Exposure")]
 # rearrange so they have the same data
-old.data <- old.data[,names(predict.df)]
+df.main <- df.main[,names(predict.df)]
+df.main$Qtr <- as.numeric(df.main$Qtr)
 
 # Finally combine the data.frames
 
-predict.df <- rbind(old.data, predict.df)
+predict.df <- rbind(df.main, predict.df)
 
 # add time
 
@@ -153,7 +169,7 @@ tmp <- predict.df[, names(predict.df) %in% c("time", "A0_Exposure", "A1_Exposure
                                               "A4_Exposure", "A5_Exposure")]
 tmp <- aggregate(formula = . ~ time, data = tmp, FUN = sum)
 melt.tmp <- melt(data = tmp, id.vars = c("time"))
-plots$Autonomy.evulution <- ggplot(data = melt.tmp) + geom_line(aes(x = time, y = value, color = variable))
+plots$Autonomy.evolution <- ggplot(data = melt.tmp) + geom_line(aes(x = time, y = value, color = variable))
 
 
-plots$Autonomy.evulution
+plots$Autonomy.evolution

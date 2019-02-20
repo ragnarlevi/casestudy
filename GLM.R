@@ -127,7 +127,7 @@ melt.autocar.refined <- melt(autocar.refined[, names(autocar.refined) %in% c("ti
 #   geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Commercial refined data")
 
 
-# multiplot(p1,p2, plotlist = NULL, cols = 1)
+# multiplot(p1,p2, p3, p4, plotlist = NULL, cols = 1)
 
 # multiplot(p3,p4, plotlist = NULL, cols = 1)
 

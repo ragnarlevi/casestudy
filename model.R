@@ -10,11 +10,11 @@ library(svDialogs) # to prompt  user
 user <- dlgInput("Who is using?", Sys.info()["user"])$res
 
 switch(EXPR = user, 
-       RAGNA = setwd("C:/Users/ragna/OneDrive/Documents/ISEG/Actuarial Science Courses @ ISEG/case study"))
+       ragna = setwd("C:/Users/ragna/OneDrive/Documents/ISEG/Actuarial Science Courses @ ISEG/case study"))
 
 
 
-# Define parameters
+# Define the time frame
 time.frame <- 0:20
 
 # General functions call
@@ -113,11 +113,11 @@ predict.df$Exposure <- predict.df$Exposure*predict.df$prop
 
 
 
-#----- Estimate Number and AAC ----
-methodForEstimation <- "glm.original"
-glm.models <- glm$rd
+# #----- Estimate Number and AAC -
+# methodForEstimation <- "multiply"
+# glm.models <- glm$rd
 
-predict.df <- aut.prem(glm.list = glm.models, type = methodForEstimation, predict.df = predict.df)
+# predict.df <- aut.prem(glm.list = glm.models, type = methodForEstimation, predict.df = predict.df)
 
 
 # ----- Make the original data ready to rbind() with theprediction data frame -----
@@ -132,7 +132,7 @@ df.main <- findProportions(df.main = df.main)
 
 df.main$Autonomy <- "A0"
 
-# rearrange so they have the same data
+# rearrange so they have the same data types
 df.main <- df.main[,names(predict.df)]
 df.main$Qtr <- as.numeric(df.main$Qtr)
 
@@ -157,3 +157,66 @@ plots$Autonomy.evolution <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exp
 
 
 plots$Autonomy.evolution
+
+
+time.frame <- 0:20
+lvls <- c("A0","A1", "A2")
+
+
+
+
+# Define exposure growth
+
+exp.growth.personal <- list(
+  A0 = function(t){
+    500*exp(-0.1*(t-7.5)^2)
+  },
+  A1 = function(t){
+    500*exp(-0.1*(t-7.5)^2)
+  },
+  A2 = function(t){
+    500*exp(-0.1*(t-7.5)^2)
+  }
+)
+
+func.personal <- function(time, state, parameters, exp.growth) {
+  
+  with(as.list(c(state, parameters)), {
+    
+    # change = Flow In - FlowOut
+    dA0 <- -A0toA1(time)*A0 - A0toA2(time)*A0 + exp.growth$A0(time)
+    dA1 <- A0toA1(time)*A0 - A1toA2(time)*A1 + exp.growth$A1(time)
+    dA2 <- A0toA2(time)*A0 + A1toA2(time)*A1 + exp.growth$A2(time)
+    
+    return(list(c(dA0, dA1, dA2)))
+  })
+}
+
+param.personal <- list(
+  A0toA1 = function(t){
+    0.07*exp(-t)
+  },
+  A0toA2 = function(t){
+    0.07*exp(-t)
+  },
+  A1toA2 = function(t){
+    #plot(t, 0.001*(t-7.5)^2)
+    1-0.01*(t-7.5)^2
+  }
+)
+
+exp.growth.commercial <- exp.growth.personal
+func.commercial <- func.personal
+param.commercial <- param.personal
+
+
+safeline.prop.aut <- list(Personal = data.frame(time = seq(min(time.frame), max(time.frame) + 1, by = 0.25),
+                                                A0 = rep(0.34, length(time.frame)*4 +1 ),
+                                                A1 = rep(1, length(time.frame)*4+1),
+                                                A2 = rep(1, length(time.frame)*4+1)),
+                        Commercial = data.frame(time = seq(min(time.frame), max(time.frame) + 1, by = 0.25),
+                                                A0 = rep(0.34, length(time.frame)*4+1),
+                                                A1 = rep(1, length(time.frame)*4+1),
+                                                A2 = rep(1, length(time.frame)*4+1)))
+
+

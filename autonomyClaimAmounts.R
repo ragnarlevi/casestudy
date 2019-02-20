@@ -1,5 +1,7 @@
 # Autonomy Claims ----
 
+
+# Setting the glm.list as a nice data frame
 A0initialParam <- function(glm.list, refine){
   # glm.list - glm list created by GLM
   # refine - what instance of data cleaning
@@ -57,7 +59,7 @@ A0initialParam <- function(glm.list, refine){
 }
 
 
-autonomyPremium <- function(estimates.A0, type = "same", time.frame = 0:20, start.year = 2019){
+autonomyPremium <- function(estimates.A0, type = "same", time.frame = 0:20, start.year = 2019, lvls){
   # estimates.A0 - estimates from the GLM.R
   # time.frame  - How long we do this
   
@@ -73,7 +75,7 @@ autonomyPremium <- function(estimates.A0, type = "same", time.frame = 0:20, star
     
     tmp <- do.call(what = rbind, args = r)
     # Add Autonomy
-    r <- lapply(X = c("A0", "A1", "A2", "A3", "A4", "A5"), FUN = function(x, tmp){
+    r <- lapply(X = lvls, FUN = function(x, tmp){
       tmp$Autonomy <- x
       return(tmp)
     }, tmp = tmp)
@@ -84,7 +86,7 @@ autonomyPremium <- function(estimates.A0, type = "same", time.frame = 0:20, star
 }
 
 
-aut.prem <- function(glm.list, type = "glm.original", predict.df ){
+aut.prem <- function(glm.list, type = "glm.original", predict.df){
   
   if(type == "glm.original"){
 
@@ -158,7 +160,7 @@ aut.prem <- function(glm.list, type = "glm.original", predict.df ){
     predict.df$AC_COM <- predict.df$Exposure*predict.df$NC_COM*predict.df$AAC_COM
     predict.df$AC_COL <- predict.df$Exposure*predict.df$NC_COL*predict.df$AAC_COL
     predict.df$AC_PI <- predict.df$Exposure*predict.df$NC_PI*predict.df$AAC_PI
-    return(pre)
+    return(predict.df)
     
   }
   
@@ -167,3 +169,148 @@ aut.prem <- function(glm.list, type = "glm.original", predict.df ){
 
 
 
+
+
+# Number of claims ----
+
+
+# considers the development in number of claims altough it is difficult to encorporate this function
+change.in.no.claims <- function(type = "sigmoid", time.frame, pct.decrease = 0.9, t.point = 0, last.four.points, dampening.constant = 10, slice.point = 0 ){
+  # type, what function to use
+  # time.frame ...time frame
+  # pct.decrease reached in the end (infinity)
+  # t.point is tipping point 
+  # dampening constant if that is needed
+  # slice.point - where to connect two functions has to be a number divisible by 0.25
+  
+  # + 0.25 because time = 0 is something we have aldready observed
+  t <- seq(from = min(time.frame)+0.25, to = max(time.frame), by = 0.25)
+  df <- data.frame(time = t)
+
+  
+  if( type == "sigmoid"){
+      # t is time, 
+      # t.point is tipping point (where second derivative is zero)
+      # param[1] is reduction in percentage
+      
+      df$decrease <- 1- pct.decrease/(1+exp(-(t-t.point)))
+      
+  }else if(type == "exp"){
+    # we need to find the correct parameters with solver
+    
+    tmp <- function(param,t){
+      a <- param[1]*exp(-param[2]*0) - 1
+      b <- param[1]*exp(-param[2]*max(t)) - (1-pct.decrease)
+      return(c(a,b))
+    }
+    tmp_sq <- function(param, t){crossprod(tmp(param, t),tmp(param, t))}
+    
+    out <- nlm(f = tmp_sq, p = c(1, 0.1), t = t)
+   # out
+    df$decrease <- out$estimate[1]*exp(-out$estimate[2]*t)
+  }else if(type == "sigmoid.exp"){
+    
+    # we need to to (1-expression)*0.5 to compress is between 1 and 0
+     sig <- 1- pct.decrease/(1+exp(-(t-t.point)))
+     # fin y -coordinate of slice point
+     y.slice <- sig[t == slice.point]
+     # define t for sigmoid
+     t.sig <- t[t<slice.point]
+     # define t where exp function is ued
+     t.exp <- t[t>= slice.point]
+     
+     tmp <- function(param,t){
+       a <- param[1]*exp(-param[2]*min(t)) - 1
+       b <- param[1]*exp(-param[2]*max(t)) - (1-pct.decrease)
+       return(c(a,b))
+     }
+     tmp_sq <- function(param, t){crossprod(tmp(param, t),tmp(param, t))}
+     
+     out <- nlm(f = tmp_sq, p = c(1, 0.2), t = t.exp)
+     exp.val <- out$estimate[1]*exp(-out$estimate[2]*t)
+     
+     df$decrease <- c(sig[t<slice.point], exp.val[t>=slice.point])
+     
+     
+     
+    }
+
+  df$number <- last.four.points
+  df$forecast <- df$decrease*df$number
+
+  
+  #plot(df$time,df$forecast)
+  return(df)
+  
+}
+
+
+# Amount changes ----
+
+
+amount.changes <- function(type = "linear", time.frame = 0:20, inflation = 0.025, last.four.points = c(1,1,1,1), data, extracost = 1, start.year = 2019){
+  # type - type of amount change to be used
+  # time.frame ....time frame
+  # last.four.points - previous year quarters
+  
+  # define time, we start at 0.25 because 0 is the last observed value
+  t <- seq(from = min(time.frame)+0.25, to = max(time.frame), by = 0.25)
+  df <- data.frame(time = t)
+ # df$inflation <- (1+inflation)^(t)
+  
+  df$time = df$time + start.year
+  
+  if(type == "linear"){
+    
+    df.1 <- data.frame(Type = unique(data$Type))
+    df.2 <- data.frame(RiskClass = unique(data$RiskClass))
+    # we will estimate for each type and each Risk Class
+    df.types <- as.data.frame(merge(df.1, df.2))
+    index <- 1:dim(df.types)[1]
+    
+    predictions <- lapply(X = index, function(x, df, df.types, data){
+      
+      rc <- df.types$RiskClass[x]
+      type <- df.types$Type[x]
+      
+      tmp <- data[data$RiskClass == rc & data$Type == type, ]
+      tmp <- tmp[, names(tmp) %in% c("time", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI")]
+      
+      #bi
+      lm <- lm(formula = AC_BI ~  time , data = tmp)
+      df$AC_BI <- predict.lm(object = lm, newdata = df)
+      
+      # PD
+      lm <- lm(formula = AC_PD ~  time , data = tmp)
+      df$AC_PD <- predict.lm(object = lm, newdata = df)
+      
+      # COM
+      lm <- lm(formula = AC_COM ~  time , data = tmp)
+      df$AC_COM <- predict.lm(object = lm, newdata = df)
+      
+      # COL
+      lm <- lm(formula = AC_COL ~  time , data = tmp)
+      df$AC_COL <- predict.lm(object = lm, newdata = df)
+      
+      # PI
+      lm <- lm(formula = AC_PI ~  time , data = tmp)
+      df$AC_PI <- predict.lm(object = lm, newdata = df)
+      
+      df$RiskClass <- rc
+      df$Type <- type
+      
+      return(df)
+    }, df = df, df.types = df.types ,data = data)
+    
+    predictions <- do.call(what = rbind, args = predictions)
+
+    # combine
+    tmp <- rbind(predictions[, names(predictions) %in% c("time", "Type", "RiskClass", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI")], data[, names(data) %in% c("time", "Type", "RiskClass", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI")])
+    
+    
+  }
+
+
+return(tmp)
+  
+}

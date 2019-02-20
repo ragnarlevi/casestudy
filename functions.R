@@ -49,7 +49,7 @@ calcEstimates <- function(df.main, model){
   # model, list of number or amount models
 
   
-  
+  df.main$estimate <- 0
   
   
   for(i in 1:dim(df.main)[1]){
@@ -274,8 +274,10 @@ EstimateGrowth <- function(Data.List, growth, time.frame = 0, df.main, lapply.Fu
 findProportions <- function(df.main, years = NULL){
   
   df.main$prop <- 0
+  df.main$Qtr <- as.numeric(df.main$Qtr)
   
-  if(!is.null(years)){
+  
+  if(is.null(years)){
     years <- unique(df.main$Year) 
   }
   for(i in years){
@@ -295,8 +297,230 @@ findProportions <- function(df.main, years = NULL){
 }
 
 
+plot.func <- function(predict.df){
+  # predict.df - the main data frame
+  
+  plots <- list()
+  
+  # Autonomy evolution
+  tmp <- predict.df[, names(predict.df) %in% c("time", "Exposure", "Autonomy")]
+  tmp <- aggregate(formula = . ~ time + Autonomy, data = tmp, FUN = sum)
+  plots$Autonomy.evolution <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total Autonomy evolution") + theme(plot.title = element_text(size = 10))
+  
+  # plots$Autonomy.evolution
+  
+  # Personal evolution
+  tmp <- predict.df[predict.df$Type == "Personal", names(predict.df) %in% c("time", "Exposure", "Autonomy")]
+  tmp <- aggregate(formula = . ~ time + Autonomy, data = tmp, FUN = sum)
+  plots$Autonomy.evolution.personal <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total Autonomy evolution for personal") + theme(plot.title = element_text(size = 10))
+  
+  # plots$Autonomy.evolution.personal
+  
+  # Commercial evolution
+  tmp <- predict.df[predict.df$Type == "Commercial", names(predict.df) %in% c("time", "Exposure", "Autonomy")]
+  tmp <- aggregate(formula = . ~ time + Autonomy, data = tmp, FUN = sum)
+  plots$Autonomy.evolution.commercial <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total Autonomy commercial") + theme(plot.title = element_text(size = 10))
+  #plots$Autonomy.evolution.commercial
+  
+  # PLot the Autonomy evolutions
+  
+  # multiplot(plots$Autonomy.evolution.personal, plots$Autonomy.evolution, plots$Autonomy.evolution.commercial, cols = 2)
+  
+  
+  # Plot Claims evolution personal
+  tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")]
+  tmp <- aggregate(formula = . ~ time + Autonomy + Type, data = tmp, FUN = sum)
+  tmp.melt <- melt(data = tmp, id = c("time", "Autonomy", "Type"))
+  
+  plots$frequency.Personal <- ggplot(data = tmp.melt[tmp.melt$Type == "Personal", ]) + geom_line(mapping = aes(x = time, y = value, color = Autonomy)) + facet_wrap(facets = . ~ variable, scales = "free") + ggtitle("Personal frequency evolution")
+  
+  # plot amount evolution personal
+  tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "AAC_BI", "AAC_PD", "AAC_COM", "AAC_COL", "AAC_PI")]
+  tmp <- aggregate(formula = . ~ time + Autonomy + Type, data = tmp, FUN = sum)
+  tmp.melt <- melt(data = tmp, id = c("time", "Autonomy", "Type"))
+  
+  plots$amount.Personal <- ggplot(data = tmp.melt[tmp.melt$Type == "Personal", ]) + geom_line(mapping = aes(x = time, y = value, color = Autonomy)) + facet_wrap(facets = . ~ variable, scales = "free") + ggtitle("Personal mount evolution")
+
+  # Plot Claims evolution Commercial
+  tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")]
+  tmp <- aggregate(formula = . ~ time + Autonomy + Type, data = tmp, FUN = sum)
+  tmp.melt <- melt(data = tmp, id = c("time", "Autonomy", "Type"))
+  
+  plots$frequency.Commercial <- ggplot(data = tmp.melt[tmp.melt$Type == "Commercial", ]) + geom_line(mapping = aes(x = time, y = value, color = Autonomy)) + facet_wrap(facets = . ~ variable, scales = "free") + ggtitle("Commercial frequency evolution")
+  
+  # plot amount evolution Commercial
+  tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "AAC_BI", "AAC_PD", "AAC_COM", "AAC_COL", "AAC_PI")]
+  tmp <- aggregate(formula = . ~ time + Autonomy + Type, data = tmp, FUN = sum)
+  tmp.melt <- melt(data = tmp, id = c("time", "Autonomy", "Type"))
+  
+  plots$amount.Commercial <- ggplot(data = tmp.melt[tmp.melt$Type == "Commercial", ]) + geom_line(mapping = aes(x = time, y = value, color = Autonomy)) + facet_wrap(facets = . ~ variable, scales = "free") + ggtitle("Commercial amount evolution")
+  
+
+  
+  return(plots)
+  
+}
 
 
 
 
 
+
+
+
+model <- function(time.frame, func.personal, func.commercial, param.personal, param.commercial,exp.growth.personal, exp.growth.commercial,
+                  safeline.prop.aut, freq.pct, loss.pct){
+  # time.frame i the time frame we are considering
+  # func.personal - differential function for personal
+  # func.commerfcial - differential function for commercial
+  # param.personal and param.commercial - paramteter for the differential function is a list of functions
+  # exp.growth.xxxx - for differential equation How much is carbia autonomous market growing (Exposre for whole of carbia)
+  # safeline.prop.aut - proportions that safelife wants
+  # freq.pct - frequency loss/gains for the autonomous levels for each coverage
+  # loss.pct - amount pct loss/gains for aut lvels for each coverage
+  
+  
+  
+  # General functions call
+  source("functions.R")
+  # GLM - parameters
+  
+  # Call the GLM.R script, estimates number and AAC for current automoblies. Also
+  source("GLM.R")
+  
+  
+  # Premiums for each autonomu class
+  source("autonomyClaimAmounts.R")
+  # estimates for A0 from the glm model
+  estimates.A0 <- A0initialParam(glm.list = glm, refine = "rd") 
+  claims.estimates <- autonomyPremium(estimates.A0 = estimates.A0, type = "same", time.frame = time.frame, start.year = 2019, lvls = lvls)
+  
+  # Proportions of Risk Classes within autonomy classes
+  source("RiskClassProp.R")
+  df.main <- autocar
+  prop <- riskClassProp(df.main, time.frame = time.frame, start.year = 2019, lvls = lvls)
+  
+  # Autonomy Proportions
+  source("autonomyProportions.R")
+  # initial value
+  
+  mark.share <- 0.34 # Given
+  
+  # Estimation for whole of Carbia
+  personal.exposure <- sum(df.main$Exposure[df.main$Year == 2018 & df.main$Qtr == 4 & df.main$Type == "Personal"])/mark.share
+  commercial.exposure <- sum(df.main$Exposure[df.main$Year == 2018 & df.main$Qtr == 4 & df.main$Type == "Commercial"])/mark.share
+  # create initial exposure for personal
+  
+  init.personal <- rep(x = 0, length = length(lvls))
+  names(init.personal) <- lvls
+  init.personal[1] <- personal.exposure
+  
+  autonomyChange <- list()
+  autonomyChange$Personal <- autonomyRateContinous(time.frame = time.frame, func = func.personal, param = param.personal, init = init.personal, exp.growth = exp.growth.personal)
+  #autonomyChange$Personal$plot
+  
+  # Commercial exposure
+  # initial vector has to have the right names
+  init.commercial <- rep(x = 0, length = length(lvls))
+  names(init.commercial) <- lvls
+  init.commercial[1] <- commercial.exposure
+  
+  autonomyChange$Commercial <-  autonomyRateContinous(time.frame = time.frame, func = func.commercial, param = param.commercial, init = init.commercial, exp.growth = exp.growth.commercial)
+  
+  
+  # Now we basically have everything, we can put it into one data frame
+  
+  # we need to make sure the data types are the same within every data frame when we join them
+  claims.estimates$Qtr <- as.numeric(claims.estimates$Qtr)
+  claims.estimates$RiskClass <- as.character(claims.estimates$RiskClass)
+  prop$Qtr <- as.numeric(prop$Qtr)
+  
+  predict.df <- full_join(claims.estimates, prop, by = c("Qtr","RiskClass", "Type", "Autonomy", "Year"))
+  # create the time column
+  predict.df$time <- predict.df$Year + 2.5*as.numeric(predict.df$Qtr)/10
+  
+  # Then add the autonomy exposure. Like the data frame is set up It has to be done with loop/lapply, unfortunately
+  # Start by initalizing columns
+  # t is what we will loop over, by = 0.25 because the 0.25 is quarter, we actually need to start at time 0.25 which is year 2019 Qtr 1
+  
+  # INITIALIZE THE COLUMN
+  predict.df$Exposure <- 0
+
+  for(type in unique(predict.df$Type)){
+    tmp <- autonomyChange[[type]]$out$time
+    # start at 2 because 1 is the inital exposure start point which we already know
+    for(i in 2:length(tmp)){
+      # adjust time to year and quarter
+      time <- tmp[i]
+
+      year <- 2018 + ceiling(time)
+      qtr <- (time * 4) %% 4
+      if(qtr == 0){ qtr <-  4}
+
+      for(l in lvls){
+        # multiply exposure with marketshare
+        tmp.exposure <- autonomyChange[[type]]$out[i, l]*safeline.prop.aut[[type]][safeline.prop.aut[[type]]$time == time, l]
+
+        predict.df$Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == type & predict.df$Autonomy == l] <- tmp.exposure
+
+
+      }
+    }
+  }
+  
+  
+  # Ajust frequency of claims and amount of claims
+  for(i in lvls){
+    predict.df$NC_BI[predict.df$Autonomy == i] <- predict.df$NC_BI[predict.df$Autonomy == i]*freq.pct[[i]]$BI
+    predict.df$NC_PD[predict.df$Autonomy == i] <- predict.df$NC_PD[predict.df$Autonomy == i]*freq.pct[[i]]$PD
+    predict.df$NC_COM[predict.df$Autonomy == i] <- predict.df$NC_COM[predict.df$Autonomy == i]*freq.pct[[i]]$COM
+    predict.df$NC_COL[predict.df$Autonomy == i] <- predict.df$NC_COL[predict.df$Autonomy == i]*freq.pct[[i]]$COL
+    predict.df$NC_PI[predict.df$Autonomy == i] <- predict.df$NC_PI[predict.df$Autonomy == i]*freq.pct[[i]]$PI
+    
+    predict.df$AAC_BI[predict.df$Autonomy == i] <- predict.df$AAC_BI[predict.df$Autonomy == i]*freq.pct[[i]]$BI
+    predict.df$AAC_PD[predict.df$Autonomy == i] <- predict.df$AAC_PD[predict.df$Autonomy == i]*freq.pct[[i]]$PD
+    predict.df$AAC_COM[predict.df$Autonomy == i] <- predict.df$AAC_COM[predict.df$Autonomy == i]*freq.pct[[i]]$COM
+    predict.df$AAC_COL[predict.df$Autonomy == i] <- predict.df$AAC_COL[predict.df$Autonomy == i]*freq.pct[[i]]$COL
+    predict.df$AAC_PI[predict.df$Autonomy == i] <- predict.df$AAC_PI[predict.df$Autonomy == i]*freq.pct[[i]]$PI
+  }
+  
+  
+  # We need to adjust the exposure by the prop column
+  predict.df$Exposure <- predict.df$Exposure*predict.df$prop
+  # Next we append our current data so we can plot some graphs representing the forecast
+  # names(predict.df)
+  
+  df.main <- autocar[, names(autocar) %in% c("Year", "Qtr", "RiskClass", "Type", "Exposure", "NC_BI",
+                                             "NC_PD", "NC_COM", "NC_COL", "NC_PI", "AAC_BI", "AAC_PD",
+                                             "AAC_COM", "AAC_COL", "AAC_PI")]
+  # Find the proportion
+  df.main <- findProportions(df.main = df.main)
+  
+  # We have to make sure the NC column is per exposure like the predict colum
+  df.main$NC_BI <- df.main$NC_BI/df.main$Exposure
+  df.main$NC_PD <- df.main$NC_PD/df.main$Exposure
+  df.main$NC_COM <- df.main$NC_COM/df.main$Exposure
+  df.main$NC_COL <- df.main$NC_COL/df.main$Exposure
+  df.main$NC_PI <- df.main$NC_PI/df.main$Exposure
+  
+  df.main$Autonomy <- "A0"
+  
+  # rearrange so they have the same data types
+  df.main$time <- df.main$Year + 2.5*as.numeric(df.main$Qtr)/10
+  df.main <- df.main[,names(predict.df)]
+  df.main$Qtr <- as.numeric(df.main$Qtr)
+  
+  
+  # Finally combine the data.frames
+  
+  predict.df <- rbind(df.main, predict.df)
+  
+  
+  
+  # return list
+  ret <- list()
+  ret$df <- predict.df
+  ret$autonomyChange <- autonomyChange
+  
+  return(ret)
+}

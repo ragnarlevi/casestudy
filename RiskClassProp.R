@@ -1,55 +1,80 @@
 
 
-riskClassProp <- function(type = "same", df.main, exposure.year = 2018, time.frame, start.year = 2019){
-  # type - what proportion model to use
+riskClassProp <- function(df.main, time.frame, start.year = 2019, lvls){
   # df.main - The data.frame
   # Exposure year what exposure year to use 
   
   
-  if(type == "same"){
-    
-    # Divide into type and personal
-    te <- list()
-    for(i in 1:4){
-      te$Personal[[paste("Qtr", i, sep ="")]] <- sum(df.main$Exposure[df.main$Qtr == i & df.main$Year == exposure.year & df.main$Type == "Personal"])
-      te$Commercial[[paste("Qtr", i, sep ="")]] <- sum(df.main$Exposure[df.main$Qtr == i & df.main$Year == exposure.year & df.main$Type == "Commercial"])
-    }
-    # create a data frame with the proportion 
-    prop <- df.main[df.main$Year == exposure.year, names(df.main) %in%  c("Qtr", "Exposure", "RiskClass", "Type", "Autonomy")]
-    # calculate the proportions
-    prop$prop <- 0
+  # calculate the proportion for each year and qtr then fin the averages
+  # 27 Risk clasess 40 dates 
+  
+  tmp.prop <- list()
+  count <- 1
+  
+  # we want to make the rows od the data frames correspond to the same row, so we order the Risk Class
+  
+  for (i in unique(df.main$Year)){
+    for(j in unique(df.main$Qtr)){
+      
+      tmp <- df.main[df.main$Year == i & df.main$Qtr == j & df.main$Type == "Personal", ]
+      total.exposure <- sum(tmp$Exposure)
+      tmp.df <- data.frame(prop = tmp$Exposure/total.exposure, RiskClass = tmp$RiskClass, stringsAsFactors = F)
 
-    # Personal
-    prop$prop[prop$Qtr == 1 & prop$Type == "Personal"] <- prop$Exposure[prop$Qtr == 1 & prop$Type == "Personal"]/te$Personal[names(te$Personal) == "Qtr1"]
-    prop$prop[prop$Qtr == 2 & prop$Type == "Personal"] <- prop$Exposure[prop$Qtr == 2 & prop$Type == "Personal"]/te$Personal[names(te$Personal) == "Qtr2"]
-    prop$prop[prop$Qtr == 3 & prop$Type == "Personal"] <- prop$Exposure[prop$Qtr == 3 & prop$Type == "Personal"]/te$Personal[names(te$Personal) == "Qtr3"]
-    prop$prop[prop$Qtr == 4 & prop$Type == "Personal"] <- prop$Exposure[prop$Qtr == 4 & prop$Type == "Personal"]/te$Personal[names(te$Personal) == "Qtr4"]
-    # Commercial
-    prop$prop[prop$Qtr == 1 & prop$Type == "Commercial"] <- prop$Exposure[prop$Qtr == 1 & prop$Type == "Commercial"]/te$Commercial[names(te$Commercial) == "Qtr1"]
-    prop$prop[prop$Qtr == 2 & prop$Type == "Commercial"] <- prop$Exposure[prop$Qtr == 2 & prop$Type == "Commercial"]/te$Commercial[names(te$Commercial) == "Qtr2"]
-    prop$prop[prop$Qtr == 3 & prop$Type == "Commercial"] <- prop$Exposure[prop$Qtr == 3 & prop$Type == "Commercial"]/te$Commercial[names(te$Commercial) == "Qtr3"]
-    prop$prop[prop$Qtr == 4 & prop$Type == "Commercial"] <- prop$Exposure[prop$Qtr == 4 & prop$Type == "Commercial"]/te$Commercial[names(te$Commercial) == "Qtr4"]
-   
-    
-    # assume the proportions are the same for every class and add to
-    r <- lapply(X = c("A0", "A1", "A2", "A3", "A4", "A5"), FUN = function(x, prop){
-      prop$Autonomy <- x
-      return(prop)
+      tmp.prop[[count]] <- tmp.df[order(tmp.df$RiskClass), "prop" ,drop = F]
       
-    }, prop = prop)
-    
-    prop <- do.call(what = rbind, args = r)
-    
-    # Finally add Years
-    r <- lapply(X = time.frame, FUN = function(x, prop){
-      prop$Year <- x + start.year
-      return(prop)
-      
-    }, prop = prop)
-    prop <- do.call(what = rbind, args = r)
-    
-    return(prop[, names(prop) %in% c("Qtr", "RiskClass", "Type", "Autonomy", "prop", "Year"), drop = F])
+      count <- count + 1
+    }
   }
+  
+# take average
+  
+tmp.prop <- do.call(what = cbind, args = tmp.prop)
+prop.personal <- rowSums(x = tmp.prop)/dim(tmp.prop)[2]
+
+
+tmp.prop <- list()
+count <- 1
+
+# we want to make the rows od the data frames correspond to the same row, so we order the Risk Class
+
+for (i in unique(df.main$Year)){
+  for(j in unique(df.main$Qtr)){
+    
+    tmp <- df.main[df.main$Year == i & df.main$Qtr == j & df.main$Type == "Commercial", ]
+    total.exposure <- sum(tmp$Exposure)
+    tmp.df <- data.frame(prop = tmp$Exposure/total.exposure, RiskClass = tmp$RiskClass, stringsAsFactors = F)
+    
+    tmp.prop[[count]] <- tmp.df[order(tmp.df$RiskClass), "prop" ,drop = F]
+    
+    count <- count + 1
+  }
+}
+
+# take average
+tmp.prop <- do.call(what = cbind, args = tmp.prop)
+prop.commercial <- rowSums(x = tmp.prop)/dim(tmp.prop)[2]
+
+prop <- data.frame(RiskClass = sort(unique(df.main$RiskClass)), Personal = prop.personal, Commercial = prop.commercial)
+
+# instead of two columns we want to have a Type Column, an prop colum
+prop <- melt(prop, id = "RiskClass")
+names(prop)[names(prop) == "variable"] <- "Type"
+names(prop)[names(prop) == "value"] <- "prop"
+
+
+# Then we need to merge year and quarter
+# new years
+tmp.df <- data.frame(Year = time.frame + start.year)
+prop <- as.data.frame(merge(prop, tmp.df))
+
+tmp.df <- data.frame(Qtr = sort(unique(df.main$Qtr)))
+prop <- as.data.frame(merge(prop, tmp.df))
+
+tmp.df <- data.frame(Autonomy = lvls)
+prop <- as.data.frame(merge(prop, tmp.df))
+
+
+return(prop)
   
 }
 

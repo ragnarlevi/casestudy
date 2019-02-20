@@ -72,108 +72,108 @@ autonomyRate <- function(time.frame, func, param, init, delay = NULL){
 
 # ----- Personal ----
 
-# create functions, Remember List
-func1 <- function(time, state, parameters) {
-  
-  with(as.list(c(state, parameters)), {
-    
-    # change = Flow In - FlowOut
-    dA0 <- -A0toA1*A0 - A0toA2*A0 - A0toA3*A0 - A0toA4*A0 - A0toA5*A0 + 500*exp(0.05*time)
-    dA1 <- A0toA1*A0 - A1toA2*A1 - A1toA3*A1 - A1toA4*A1 - A1toA5*A1  + 500*exp(0.05*time)
-    dA2 <- A0toA2*A0 + A1toA2*A1 - A2toA3*A2 - A2toA4*A2 - A2toA5*A2 
-    dA3 <- A0toA3*A0 + A1toA3*A1 + A2toA3*A2 - A3toA4*A3 - A3toA5*A3 
-    dA4 <- A0toA4*A0 + A1toA4*A1 + A2toA4*A2 + A3toA4*A3 - A4toA5*A4 
-    dA5 <- A0toA5*A0 + A1toA5*A1 + A2toA5*A2 + A3toA5*A3 + A4toA5*A4 
-    
-    return(list(c(dA0, dA1, dA2, dA3, dA4, dA5)))
-  })
-}
+# # create functions, Remember List
+# func1 <- function(time, state, parameters) {
+#   
+#   with(as.list(c(state, parameters)), {
+#     
+#     # change = Flow In - FlowOut
+#     dA0 <- -A0toA1*A0 - A0toA2*A0 - A0toA3*A0 - A0toA4*A0 - A0toA5*A0 + 500*exp(0.05*time)
+#     dA1 <- A0toA1*A0 - A1toA2*A1 - A1toA3*A1 - A1toA4*A1 - A1toA5*A1  + 500*exp(0.05*time)
+#     dA2 <- A0toA2*A0 + A1toA2*A1 - A2toA3*A2 - A2toA4*A2 - A2toA5*A2 
+#     dA3 <- A0toA3*A0 + A1toA3*A1 + A2toA3*A2 - A3toA4*A3 - A3toA5*A3 
+#     dA4 <- A0toA4*A0 + A1toA4*A1 + A2toA4*A2 + A3toA4*A3 - A4toA5*A4 
+#     dA5 <- A0toA5*A0 + A1toA5*A1 + A2toA5*A2 + A3toA5*A3 + A4toA5*A4 
+#     
+#     return(list(c(dA0, dA1, dA2, dA3, dA4, dA5)))
+#   })
+# }
 
-
-# Add to the list
-func.personal <- list()
-func.personal[[1]] <- func1
-func.personal[[2]] <- func1
-func.personal[[3]] <- func1
-func.personal[[4]] <- func1
-
-# define parameters they have to have the correct names
-delay.personal <- 0
-param1 <- c(A0toA1 = 0.02,
-            A0toA2 = 0.001,
-            A0toA3 = 0.008,
-            A0toA4 = 0.1,
-            A0toA5 = 0.8,
-            A1toA2 = 0,
-            A1toA3 = 0,
-            A1toA4 = 0,
-            A1toA5 = 0,
-            A2toA3 = 0,
-            A2toA4 = 0,
-            A2toA5 = 0,
-            A3toA4 = 0,
-            A3toA5 = 0,
-            A4toA5 = 0)
-delay.personal <- c(delay.personal, 5)
-param2 <- c(A0toA1 = 0.01,
-            A0toA2 = 0.001,
-            A0toA3 = 0.001,
-            A0toA4 = 0.001,
-            A0toA5 = 0,
-            A1toA2 = 0.001,
-            A1toA3 = 0,
-            A1toA4 = 0,
-            A1toA5 = 0,
-            A2toA3 = 0,
-            A2toA4 = 0,
-            A2toA5 = 0,
-            A3toA4 = 0,
-            A3toA5 = 0,
-            A4toA5 = 0)
-
-delay.personal <- c(delay.personal, 10)
-param3 <- c(A0toA1 = 0.01,
-            A0toA2 = 0.001,
-            A0toA3 = 0.001,
-            A0toA4 = 0.001,
-            A0toA5 = 0.0005,
-            A1toA2 = 0.004,
-            A1toA3 = 0.004,
-            A1toA4 = 0.004,
-            A1toA5 = 0.004,
-            A2toA3 = 0,
-            A2toA4 = 0,
-            A2toA5 = 0,
-            A3toA4 = 0,
-            A3toA5 = 0,
-            A4toA5 = 0)
-
-delay.personal <- c(delay.personal, 15)
-param4 <- c(A0toA1 = 0.1,
-            A0toA2 = 0.01,
-            A0toA3 = 0.01,
-            A0toA4 = 0.01,
-            A0toA5 = 0.01,
-            A1toA2 = 0.004,
-            A1toA3 = 0.004,
-            A1toA4 = 0.004,
-            A1toA5 = 0.004,
-            A2toA3 = 0,
-            A2toA4 = 0,
-            A2toA5 = 0,
-            A3toA4 = 0,
-            A3toA5 = 0,
-            A4toA5 = 0)
-delay.personal <- c(delay.personal, max(time.frame) +1)
-
-# Finnally add to list the paranm
-param.personal <- list()
-param.personal[[1]] <- param1
-param.personal[[2]] <- param2
-param.personal[[3]] <- param3
-param.personal[[4]] <- param4
-
-
+# 
+# # Add to the list
+# func.personal <- list()
+# func.personal[[1]] <- func1
+# func.personal[[2]] <- func1
+# func.personal[[3]] <- func1
+# func.personal[[4]] <- func1
+# 
+# # define parameters they have to have the correct names
+# delay.personal <- 0
+# param1 <- c(A0toA1 = 0.02,
+#             A0toA2 = 0.001,
+#             A0toA3 = 0.008,
+#             A0toA4 = 0.1,
+#             A0toA5 = 0.8,
+#             A1toA2 = 0,
+#             A1toA3 = 0,
+#             A1toA4 = 0,
+#             A1toA5 = 0,
+#             A2toA3 = 0,
+#             A2toA4 = 0,
+#             A2toA5 = 0,
+#             A3toA4 = 0,
+#             A3toA5 = 0,
+#             A4toA5 = 0)
+# delay.personal <- c(delay.personal, 5)
+# param2 <- c(A0toA1 = 0.01,
+#             A0toA2 = 0.001,
+#             A0toA3 = 0.001,
+#             A0toA4 = 0.001,
+#             A0toA5 = 0,
+#             A1toA2 = 0.001,
+#             A1toA3 = 0,
+#             A1toA4 = 0,
+#             A1toA5 = 0,
+#             A2toA3 = 0,
+#             A2toA4 = 0,
+#             A2toA5 = 0,
+#             A3toA4 = 0,
+#             A3toA5 = 0,
+#             A4toA5 = 0)
+# 
+# delay.personal <- c(delay.personal, 10)
+# param3 <- c(A0toA1 = 0.01,
+#             A0toA2 = 0.001,
+#             A0toA3 = 0.001,
+#             A0toA4 = 0.001,
+#             A0toA5 = 0.0005,
+#             A1toA2 = 0.004,
+#             A1toA3 = 0.004,
+#             A1toA4 = 0.004,
+#             A1toA5 = 0.004,
+#             A2toA3 = 0,
+#             A2toA4 = 0,
+#             A2toA5 = 0,
+#             A3toA4 = 0,
+#             A3toA5 = 0,
+#             A4toA5 = 0)
+# 
+# delay.personal <- c(delay.personal, 15)
+# param4 <- c(A0toA1 = 0.1,
+#             A0toA2 = 0.01,
+#             A0toA3 = 0.01,
+#             A0toA4 = 0.01,
+#             A0toA5 = 0.01,
+#             A1toA2 = 0.004,
+#             A1toA3 = 0.004,
+#             A1toA4 = 0.004,
+#             A1toA5 = 0.004,
+#             A2toA3 = 0,
+#             A2toA4 = 0,
+#             A2toA5 = 0,
+#             A3toA4 = 0,
+#             A3toA5 = 0,
+#             A4toA5 = 0)
+# delay.personal <- c(delay.personal, max(time.frame) +1)
+# 
+# # Finnally add to list the paranm
+# param.personal <- list()
+# param.personal[[1]] <- param1
+# param.personal[[2]] <- param2
+# param.personal[[3]] <- param3
+# param.personal[[4]] <- param4
+# 
+# 
 
 
 
@@ -188,106 +188,106 @@ param.personal[[4]] <- param4
 # ----- Personal
 
 # create functions, Remember List
-func1 <- function(time, state, parameters) {
-  
-  with(as.list(c(state, parameters)), {
-    
-    # change = Flow In - FlowOut
-    dA0 <- -A0toA1*A0 - A0toA2*A0 - A0toA3*A0 - A0toA4*A0 - A0toA5*A0
-    dA1 <- A0toA1*A0 - A1toA2*A1 - A1toA3*A1 - A1toA4*A1 - A1toA5*A1
-    dA2 <- A0toA2*A0 + A1toA2*A1 - A2toA3*A2 - A2toA4*A2 - A2toA5*A2 
-    dA3 <- A0toA3*A0 + A1toA3*A1 + A2toA3*A2 - A3toA4*A3 - A3toA5*A3 
-    dA4 <- A0toA4*A0 + A1toA4*A1 + A2toA4*A2 + A3toA4*A3 - A4toA5*A4 
-    dA5 <- A0toA5*A0 + A1toA5*A1 + A2toA5*A2 + A3toA5*A3 + A4toA5*A4 
-    
-    return(list(c(dA0, dA1, dA2, dA3, dA4, dA5)))
-  })
-}
-
-
-# Add to the list
-func.commercial <- list()
-func.commercial[[1]] <- func1
-func.commercial[[2]] <- func1
-func.commercial[[3]] <- func1
-func.commercial[[4]] <- func1
-
-# define parameters they have to have the correct names
-delay.commercial <- 0
-param1 <- c(A0toA1 = 0.2,
-            A0toA2 = 0.001,
-            A0toA3 = 0.008,
-            A0toA4 = 0.1,
-            A0toA5 = 0.8,
-            A1toA2 = 0,
-            A1toA3 = 0,
-            A1toA4 = 0,
-            A1toA5 = 0,
-            A2toA3 = 0,
-            A2toA4 = 0,
-            A2toA5 = 0,
-            A3toA4 = 0,
-            A3toA5 = 0,
-            A4toA5 = 0)
-delay.commercial <- c(delay.commercial, 5)
-param2 <- c(A0toA1 = 0.01,
-            A0toA2 = 0.001,
-            A0toA3 = 0.001,
-            A0toA4 = 0.001,
-            A0toA5 = 0,
-            A1toA2 = 0.001,
-            A1toA3 = 0,
-            A1toA4 = 0,
-            A1toA5 = 0,
-            A2toA3 = 0,
-            A2toA4 = 0,
-            A2toA5 = 0,
-            A3toA4 = 0,
-            A3toA5 = 0,
-            A4toA5 = 0)
-
-delay.commercial <- c(delay.commercial, 10)
-param3 <- c(A0toA1 = 0.01,
-            A0toA2 = 0.001,
-            A0toA3 = 0.001,
-            A0toA4 = 0.001,
-            A0toA5 = 0.0005,
-            A1toA2 = 0.004,
-            A1toA3 = 0.004,
-            A1toA4 = 0.004,
-            A1toA5 = 0.004,
-            A2toA3 = 0,
-            A2toA4 = 0,
-            A2toA5 = 0,
-            A3toA4 = 0,
-            A3toA5 = 0,
-            A4toA5 = 0)
-
-delay.commercial <- c(delay.commercial, 15)
-param4 <- c(A0toA1 = 0.1,
-            A0toA2 = 0.01,
-            A0toA3 = 0.01,
-            A0toA4 = 0.01,
-            A0toA5 = 0.01,
-            A1toA2 = 0.004,
-            A1toA3 = 0.004,
-            A1toA4 = 0.004,
-            A1toA5 = 0.004,
-            A2toA3 = 0,
-            A2toA4 = 0,
-            A2toA5 = 0,
-            A3toA4 = 0,
-            A3toA5 = 0,
-            A4toA5 = 0)
-delay.commercial <- c(delay.commercial, max(time.frame)+1)
-
-# Finnally add to list the paranm
-param.commercial <- list()
-param.commercial[[1]] <- param1
-param.commercial[[2]] <- param2
-param.commercial[[3]] <- param3
-param.commercial[[4]] <- param4
-
+# func1 <- function(time, state, parameters) {
+#   
+#   with(as.list(c(state, parameters)), {
+#     
+#     # change = Flow In - FlowOut
+#     dA0 <- -A0toA1*A0 - A0toA2*A0 - A0toA3*A0 - A0toA4*A0 - A0toA5*A0
+#     dA1 <- A0toA1*A0 - A1toA2*A1 - A1toA3*A1 - A1toA4*A1 - A1toA5*A1
+#     dA2 <- A0toA2*A0 + A1toA2*A1 - A2toA3*A2 - A2toA4*A2 - A2toA5*A2 
+#     dA3 <- A0toA3*A0 + A1toA3*A1 + A2toA3*A2 - A3toA4*A3 - A3toA5*A3 
+#     dA4 <- A0toA4*A0 + A1toA4*A1 + A2toA4*A2 + A3toA4*A3 - A4toA5*A4 
+#     dA5 <- A0toA5*A0 + A1toA5*A1 + A2toA5*A2 + A3toA5*A3 + A4toA5*A4 
+#     
+#     return(list(c(dA0, dA1, dA2, dA3, dA4, dA5)))
+#   })
+# }
+# 
+# 
+# # Add to the list
+# func.commercial <- list()
+# func.commercial[[1]] <- func1
+# func.commercial[[2]] <- func1
+# func.commercial[[3]] <- func1
+# func.commercial[[4]] <- func1
+# 
+# # define parameters they have to have the correct names
+# delay.commercial <- 0
+# param1 <- c(A0toA1 = 0.2,
+#             A0toA2 = 0.001,
+#             A0toA3 = 0.008,
+#             A0toA4 = 0.1,
+#             A0toA5 = 0.8,
+#             A1toA2 = 0,
+#             A1toA3 = 0,
+#             A1toA4 = 0,
+#             A1toA5 = 0,
+#             A2toA3 = 0,
+#             A2toA4 = 0,
+#             A2toA5 = 0,
+#             A3toA4 = 0,
+#             A3toA5 = 0,
+#             A4toA5 = 0)
+# delay.commercial <- c(delay.commercial, 5)
+# param2 <- c(A0toA1 = 0.01,
+#             A0toA2 = 0.001,
+#             A0toA3 = 0.001,
+#             A0toA4 = 0.001,
+#             A0toA5 = 0,
+#             A1toA2 = 0.001,
+#             A1toA3 = 0,
+#             A1toA4 = 0,
+#             A1toA5 = 0,
+#             A2toA3 = 0,
+#             A2toA4 = 0,
+#             A2toA5 = 0,
+#             A3toA4 = 0,
+#             A3toA5 = 0,
+#             A4toA5 = 0)
+# 
+# delay.commercial <- c(delay.commercial, 10)
+# param3 <- c(A0toA1 = 0.01,
+#             A0toA2 = 0.001,
+#             A0toA3 = 0.001,
+#             A0toA4 = 0.001,
+#             A0toA5 = 0.0005,
+#             A1toA2 = 0.004,
+#             A1toA3 = 0.004,
+#             A1toA4 = 0.004,
+#             A1toA5 = 0.004,
+#             A2toA3 = 0,
+#             A2toA4 = 0,
+#             A2toA5 = 0,
+#             A3toA4 = 0,
+#             A3toA5 = 0,
+#             A4toA5 = 0)
+# 
+# delay.commercial <- c(delay.commercial, 15)
+# param4 <- c(A0toA1 = 0.1,
+#             A0toA2 = 0.01,
+#             A0toA3 = 0.01,
+#             A0toA4 = 0.01,
+#             A0toA5 = 0.01,
+#             A1toA2 = 0.004,
+#             A1toA3 = 0.004,
+#             A1toA4 = 0.004,
+#             A1toA5 = 0.004,
+#             A2toA3 = 0,
+#             A2toA4 = 0,
+#             A2toA5 = 0,
+#             A3toA4 = 0,
+#             A3toA5 = 0,
+#             A4toA5 = 0)
+# delay.commercial <- c(delay.commercial, max(time.frame)+1)
+# 
+# # Finnally add to list the paranm
+# param.commercial <- list()
+# param.commercial[[1]] <- param1
+# param.commercial[[2]] <- param2
+# param.commercial[[3]] <- param3
+# param.commercial[[4]] <- param4
+# 
 
 
 
@@ -297,7 +297,7 @@ param.commercial[[4]] <- param4
 
 
 # ---- Time dependent parameters example
-autonomyRateContinous <- function(time.frame, func, param, init){
+autonomyRateContinous <- function(time.frame, func, param, init, ... ){
   # Load deSolve package
   # time frame, 
   # func - list of functions
@@ -306,8 +306,8 @@ autonomyRateContinous <- function(time.frame, func, param, init){
   # delay, vector of when the new model take over, if only one model set D
   
   
-  time.frame <- seq(min(time.frame), max(time.frame) + 1, by = 0.25)
-  out <- ode(y = init, times = t, func = func, parms = param)
+  t <- seq(min(time.frame), max(time.frame) + 1, by = 0.25)
+  out <- ode(y = init, times = t, func = func, parms = param, ...)
   
   # change to data frame
   out <- as.data.frame(out)
@@ -315,7 +315,7 @@ autonomyRateContinous <- function(time.frame, func, param, init){
   endTime <- max(time.frame)
   melt.out <- melt(data = out, id.vars = c("time"))
   autonomyPlot <- ggplot(data = melt.out) + geom_line(mapping = aes(x = time, y = value, color = variable)) +
-    ggtitle("Projected change in the Autonomy Classes") + ylab("Proportion") +
+    ggtitle("Projected change in the Autonomy Classes") + ylab("Exposure") +
     scale_x_continuous(name = "Years", labels = seq(from = 2019, to = endTime + 2019, by = 5)) # numeric so continous x-scale
   #autonomyPlot
   
@@ -327,42 +327,42 @@ autonomyRateContinous <- function(time.frame, func, param, init){
 }
 
 # create functions, Remember List
-func1 <- function(time, state, parameters) {
-  
-  with(as.list(c(state, parameters)), {
-    
-    # change = Flow In - FlowOut
-    dA0 <- -A0toA1(time)*A0 - A0toA2*A0 - A0toA3*A0 - A0toA4*A0 - A0toA5*A0 + 500*exp(0.05*time)
-    dA1 <- A0toA1(time)*A0 - A1toA2*A1 - A1toA3*A1 - A1toA4*A1 - A1toA5*A1  + 500*exp(0.05*time)
-    dA2 <- A0toA2*A0 + A1toA2*A1 - A2toA3*A2 - A2toA4*A2 - A2toA5*A2 
-    dA3 <- A0toA3*A0 + A1toA3*A1 + A2toA3*A2 - A3toA4*A3 - A3toA5*A3 
-    dA4 <- A0toA4*A0 + A1toA4*A1 + A2toA4*A2 + A3toA4*A3 - A4toA5*A4 
-    dA5 <- A0toA5*A0 + A1toA5*A1 + A2toA5*A2 + A3toA5*A3 + A4toA5*A4 
-    
-    return(list(c(dA0, dA1, dA2, dA3, dA4, dA5)))
-  })
-}
-
-param4 <- list(A0toA1 = function(t){0.1*exp(0.5*t)},
-            A0toA2 = 0.01,
-            A0toA3 = 0.01,
-            A0toA4 = 0.01,
-            A0toA5 = 0.01,
-            A1toA2 = 0.04,
-            A1toA3 = 0.003,
-            A1toA4 = 0.009,
-            A1toA5 = 0.004,
-            A2toA3 = 0,
-            A2toA4 = 0,
-            A2toA5 = 0,
-            A3toA4 = 0,
-            A3toA5 = 0,
-            A4toA5 = 0)
-init <- c(A0 = 50000, A1 =0, A2 =0, A3 = 0, A4 = 0, A5 = 0)
-t <- seq(0, 20, by = 0.25)
-
-
-tt <- autonomyRateContinous(time.frame = 0:20, func = func1, param = param4, init = init)
-tt$plot
+# func1 <- function(time, state, parameters) {
+#   
+#   with(as.list(c(state, parameters)), {
+#     
+#     # change = Flow In - FlowOut
+#     dA0 <- -A0toA1(time)*A0 - A0toA2*A0 - A0toA3*A0 - A0toA4*A0 - A0toA5*A0 + 500*exp(0.05*time)
+#     dA1 <- A0toA1(time)*A0 - A1toA2*A1 - A1toA3*A1 - A1toA4*A1 - A1toA5*A1  + 500*exp(0.05*time)
+#     dA2 <- A0toA2*A0 + A1toA2*A1 - A2toA3*A2 - A2toA4*A2 - A2toA5*A2 
+#     dA3 <- A0toA3*A0 + A1toA3*A1 + A2toA3*A2 - A3toA4*A3 - A3toA5*A3 
+#     dA4 <- A0toA4*A0 + A1toA4*A1 + A2toA4*A2 + A3toA4*A3 - A4toA5*A4 
+#     dA5 <- A0toA5*A0 + A1toA5*A1 + A2toA5*A2 + A3toA5*A3 + A4toA5*A4 
+#     
+#     return(list(c(dA0, dA1, dA2, dA3, dA4, dA5)))
+#   })
+# }
+# 
+# param4 <- list(A0toA1 = function(t){0.1*exp(0.5*t)},
+#             A0toA2 = 0.01,
+#             A0toA3 = 0.01,
+#             A0toA4 = 0.01,
+#             A0toA5 = 0.01,
+#             A1toA2 = 0.04,
+#             A1toA3 = 0.003,
+#             A1toA4 = 0.009,
+#             A1toA5 = 0.004,
+#             A2toA3 = 0,
+#             A2toA4 = 0,
+#             A2toA5 = 0,
+#             A3toA4 = 0,
+#             A3toA5 = 0,
+#             A4toA5 = 0)
+# init <- c(A0 = 50000, A1 =0, A2 =0, A3 = 0, A4 = 0, A5 = 0)
+# t <- seq(0, 20, by = 0.25)
+# 
+# 
+# tt <- autonomyRateContinous(time.frame = 0:20, func = func1, param = param4, init = init)
+# tt$plot
 
 

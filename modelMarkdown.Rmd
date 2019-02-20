@@ -1,0 +1,391 @@
+---
+title: "Model Report"
+author: "Ragnar"
+date: "February 12, 2019"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    theme: lumen
+---
+
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 9999)
+```
+
+# Libraries
+
+```{r, message=FALSE, warning=FALSE}
+# Libraries ----
+library(readxl) # read exlce
+library(dplyr) # For table manipulations
+library(plyr)
+library(reshape2) # For melt function to chane data frames to parse into ggplot functions
+library(ggplot2) # For Nice plots
+library(deSolve)  # To solve differential equations
+```
+
+# preperation and load models/scripts
+
+We will be looking at the next 20 years to start with
+```{r, message=FALSE, warning=FALSE}
+# Define the time frame
+time.frame <- 0:20
+lvls <- c("A0", "A1", "A2", "A3", "A4", "A5")
+
+# General functions call
+source("functions.R")
+# GLM - parameters
+
+# Call the GLM.R script, estimates number and AAC for current automoblies. Also
+source("GLM.R")
+
+# Figure For Personal types
+p1 <- ggplot(melt.autocar[melt.autocar$Type == "Personal",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+  geom_vline(xintercept = 2010.75, alpha = 0.3) + facet_wrap( ~ variable, scales = "free") + ggtitle("Personal raw data")
+p2 <- ggplot(melt.autocar.refined[melt.autocar.refined$Type == "Personal",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+  geom_vline(xintercept = 2010.75, alpha = 0.3) + facet_wrap( ~ variable, scales = "free") + ggtitle("Personal refined data")
+
+# Figure for Commercial types
+p3 <- ggplot(melt.autocar[melt.autocar$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+  geom_vline(xintercept = 2010.75, alpha = 0.3) + facet_wrap( ~ variable, scales = "free") + ggtitle("Commercial raw data")
+p4 <- ggplot(melt.autocar.refined[melt.autocar.refined$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+  geom_vline(xintercept = 2010.75, alpha = 0.3) + facet_wrap( ~ variable, scales = "free") + ggtitle("Commercial refined data")
+
+
+multiplot(p1,p2, plotlist = NULL, cols = 1)
+multiplot(p3, p4, plotlist = NULL, cols = 1)
+
+```
+
+
+
+```{r, message=FALSE, warning=FALSE}
+
+# Premiums for each autonomu class
+source("autonomyClaimAmounts.R")
+# estimates for A0 from the glm model
+estimates.A0 <- A0initialParam(glm.list = glm, refine = "rd") # See functions.R
+claims.estimates <- autonomyPremium(estimates.A0 = estimates.A0, type = "same", time.frame = time.frame, start.year = 2019, lvls = lvls)
+
+  # Proportions of Risk Classes within autonomy classes
+source("RiskClassProp.R")
+df.main <- autocar
+df.main$Autonomy <- "A0"
+df.main$AutonomyProp <- 1
+df.main$prop <- 1
+prop <- riskClassProp(df.main = df.main, time.frame = time.frame, start.year = 2019, lvls = lvls)
+# sum(prop$prop[prop$Type == "Personal" & prop$Qtr == 1 & prop$Autonomy == "A0"])
+
+```
+
+# Descriptive analysis
+
+## Frequency trend
+
+One of the disuptors is a potential 90 \% reduction in accident frequency based on a forecast of downward trend of light vehicle crash involvement. Let's see if our data gives some downward trend. We use the raw data and we need to account for the increase in marketshare by deviding number of collison by exposure. Then we accumuate every risk class and type.
+
+```{r, warning = FALSE, message=FALSE}
+
+agg.df <- autocar # We will Store in a agg.df variable as we will make some changes
+# We choose which columns we want
+select.col <- c("Year", "Qtr", "Exposure", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")
+agg.df <- agg.df[, names(agg.df) %in% select.col]
+
+agg.df <- aggregate(formula = . ~ Year + Qtr, data = agg.df, FUN = sum)
+
+# standardize according to Exposure
+
+agg.df$NC_BI <- agg.df$NC_BI/agg.df$Exposure
+agg.df$NC_PD <- agg.df$NC_PD/agg.df$Exposure
+agg.df$NC_COM <- agg.df$NC_COM/agg.df$Exposure
+agg.df$NC_COL <- agg.df$NC_COL/agg.df$Exposure
+agg.df$NC_PI <- agg.df$NC_PI/agg.df$Exposure
+
+# convert year and quarter to time
+agg.df$time <-  agg.df$Year + 2.5*as.numeric(agg.df$Qtr)/10
+
+melt.agg.df <- melt(data = agg.df, id = c("Year", "time", "Qtr", "Exposure"))
+
+# lets keep our plots in a list
+plots <- list()
+plots$Frequency_trend <- ggplot(data = melt.agg.df) + geom_line(mapping = aes(x = time, y = value, color = variable))
+plots$Frequency_trend
+
+
+
+```
+
+
+
+So it can be seen that the number of claims is pretty much a constant for each quarter so that it is likely that we Carbia has had no vehicle/infrastructure improvements regarding to safety. That being said, it seems that the collision variable has been increasing but is starting to decrease again
+
+It is expected that with increasing autonomy accident frequency will go down. Because one accident can account for more thant one accident type, it can be assumed that the frequency for each accident type decreases uniformly. Thus it is likely that the frequency will slowly decrease until the "tipping point" then we will have a rapid decrease which will level off. We will look start by estimating with the sigmoid function. The decrease will be expressed in percentage and the most recent year (2018) will be used as the 100\% level. Note we are only looking at the collision but we would expect similar trend for the other claim types.
+
+```{r}
+# last four points (points of year 2018)
+last.four.points <- agg.df$NC_COL[agg.df$Year == 2018] # uses agg.df from before (last chunk of code)
+
+# Sigmoid
+sigmoid.test <- change.in.no.claims(type = "sigmoid", time.frame = time.frame, pct.decrease = 0.9, t.point = 10,last.four.points = last.four.points)
+sigmoid.test <- sigmoid.test[, names(sigmoid.test) %in% c("time", "forecast")]
+names(sigmoid.test) <- c("time", "sigmoid.forecast")
+
+
+# initial data frame frame which keeps al frequency decrease examples for comparison later
+freq.decrease <- sigmoid.test
+remove(sigmoid.test)
+# Exponential
+exp.test <- change.in.no.claims(type = "exp", time.frame = time.frame, pct.decrease = 0.9, t.point = 0,last.four.points = last.four.points)
+freq.decrease$exp.forecast <- exp.test$forecast
+
+# sigmoid.exp
+sigmoid.exp.test <- change.in.no.claims(type = "sigmoid.exp", time.frame = time.frame, pct.decrease = 0.9, t.point = 10,last.four.points = last.four.points, slice.point = 7.5)
+freq.decrease$sigmoid.exp.forecast <- sigmoid.exp.test$forecast
+
+
+# plot
+
+melt.freq <- melt(data = freq.decrease, id = c("time"))
+
+plots$frequency_decrease_example <- ggplot(data = melt.freq) + geom_line(mapping = aes(x = time, y = value, color = variable)) +
+  ggtitle("Plausible decrease in accident frequency. These numbers are for collision alone")
+plots$frequency_decrease_example
+
+```
+
+
+Pure exponential could be increasing to much in the beginning while the logistic sigmoid decreases too rapidly around time = 10. However, a hyprid could be a more realistic representation as the frequency is likely to start decreasing slowly until some great turning point.
+
+
+## Amount Claims
+
+Current claim amounts are the following
+
+```{r}
+
+agg.amount <- autocar # We will Store in a agg.amount variable as we will make some changes
+# We choose which columns we want
+select.col <- c("Year", "Qtr", "Exposure", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI")
+agg.amount <- agg.amount[, names(agg.amount) %in% select.col]
+
+agg.amount <- aggregate(formula = . ~ Year + Qtr, data = agg.amount, FUN = sum)
+
+# standardize according to Exposure
+
+agg.amount$AC_BI <- agg.amount$AC_BI/agg.amount$Exposure
+agg.amount$AC_PD <- agg.amount$AC_PD/agg.amount$Exposure
+agg.amount$AC_COM <- agg.amount$AC_COM/agg.amount$Exposure
+agg.amount$AC_COL <- agg.amount$AC_COL/agg.amount$Exposure
+agg.amount$AC_PI <- agg.amount$AC_PI/agg.amount$Exposure
+
+# convert year and quarter to time
+agg.amount$time <-  agg.amount$Year + 2.5*as.numeric(agg.amount$Qtr)/10
+
+melt.agg.amount <- melt(data = agg.amount, id = c("Year", "time", "Qtr", "Exposure"))
+
+# lets keep our plots in a list
+plots <- list()
+plots$amount_trend <- ggplot(data = melt.agg.amount) + geom_line(mapping = aes(x = time, y = value, color = variable)) +
+  ggtitle("Amount trend for claim amounts. Standardized.")
+plots$amount_trend
+
+```
+
+
+
+There are multiple scenarios which can happen for future accident costs.
+
+First of all the cost of  claim could be increasing because of inflation only.
+
+The impact on bodily injury is unclear but the average property damage. Economies of autonomous vehicles are trying to lower the cost so the collison part and property damge could be less...who knows.
+
+The parts could also be mor expensive.
+
+There could also be a hybrid scenario where the parts are expensive in the begining by as the technology/production gets better we will see decrease in cost. This is called the tipping point.
+
+Faster reaction times of autonomous vehicles and safer cars will reduce bodily and personal injury.
+
+Low cost transportation pods
+
+Let's look at the scenarios graphically for unit amounts
+
+```{r, fig.height= 20}
+# inflation test
+tmp <- amount.changes(type = "linear", time.frame = time.frame, start.year = 2019, data = autocar.refined)
+tmp.melt <- melt(tmp[, names(tmp) %in% c("RiskClass", "time", "Type", "AC_BI")], id = c("RiskClass","time", "Type"))
+
+plots$amount_trend <-    ggplot(tmp.melt) + geom_line(mapping = aes(x = time, y = value, color = variable)) + facet_wrap(. ~ RiskClass + Type, scales = "free" , ncol = 4) +   
+   theme( axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank()) +
+   ggtitle("Prediction for BI")
+ 
+ plots$amount_trend
+    
+
+```
+
+This is some what useless maybe. The coefficient can be altered in the function `amount.changes()` so the slope can be altered for each autonomy level. At least we have this option.
+
+## Autonomy Exposure 
+
+Let's divide into 3 phases
+
+  * Phase 1
+    * Exposure increasing
+    * Commercial increasing autonomous
+  * Phase 2
+    * Acceleration 
+    * Commercial increasing
+    * Personal autonomity getting more popular
+  * Phase 3
+    * Total turnover
+    * Commercial autonomous fleets
+    * Public fleets are more that 50%  autonomus
+
+
+
+
+```{r}
+
+# Personal autonomy development
+# A0.commercial <- sum(df.main$Exposure[df.main$Year == 2018 & df.main$Qtr == 4 & df.main$Type == "Commercial"])
+# initial vector has to have the right names
+# init.commercial <- c(A0 = A0.commercial , A1 = 0, A2 = 0, A3 = 0, A4 = 0, A5 = 0)
+# 
+# autonomyChange$Commercial <- autonomyRate(time.frame = time.frame, func = func.commercial, param = param.commercial, init = init.commercial, delay # = delay.commercial)
+# autonomyChange$Commercial$plot
+```
+
+
+
+# Scenarios
+
+There are some problems. The main problem is probably that we have too many variables so we could have estimation error. Of course it is hard to model because we have no past data on autonomous vehicle. The articles seem to randomly generate numbers, but the kpmg one at least saying the frequecy is going down becase from past data the frequecy is going down. This is not happeing in our data. This is why it is import to do sensitivity analysis because no one knows what will happen. Most articles talk about what is going to happen in the big picture and really only talk about autonomous vehicles not the levels.
+
+
+
+
+
+
+## Testing 
+
+```{r, warning=FALSE}
+time.frame <- 0:20
+lvls <- c("A0","A1", "A2")
+
+
+
+
+# Define exposure growth
+
+exp.growth.personal <- list(
+  A0 = function(t){
+    500*exp(-0.1*(t-7.5)^2)
+  },
+  A1 = function(t){
+    500*exp(-0.1*(t-7.5)^2)
+  },
+  A2 = function(t){
+    500*exp(-0.1*(t-7.5)^2)
+  }
+)
+
+func.personal <- function(time, state, parameters, exp.growth) {
+  
+  with(as.list(c(state, parameters)), {
+    
+    # change = Flow In - FlowOut
+    dA0 <- -A0toA1(time)*A0 - A0toA2(time)*A0 + exp.growth$A0(time)
+    dA1 <- A0toA1(time)*A0 - A1toA2(time)*A1 + exp.growth$A1(time)
+    dA2 <- A0toA2(time)*A0 + A1toA2(time)*A1 + exp.growth$A2(time)
+    
+    return(list(c(dA0, dA1, dA2)))
+  })
+}
+
+param.personal <- list(
+  A0toA1 = function(t){
+    0.07*exp(-t)
+  },
+  A0toA2 = function(t){
+    0.07*exp(-t)
+  },
+  A1toA2 = function(t){
+    #plot(t, 0.001*(t-7.5)^2)
+    1-0.01*(t-7.5)^2
+  }
+)
+
+exp.growth.commercial <- exp.growth.personal
+func.commercial <- func.personal
+param.commercial <- param.personal
+
+# Define as lists, same names 
+freq.pct <- list()
+
+freq.pct$A0 <- data.frame(BI = 1, PD = 1, COM = 1, COL = 1, PI = 1)
+freq.pct$A1 <- data.frame(BI = 0.95, PD = 0.95, COM = 0.95, COL = 0.95, PI = 0.95)
+freq.pct$A2 <- data.frame(BI = 0.9, PD = 0.9, COM = 0.9, COL = 0.9, PI = 0.9)
+freq.pct$A3 <- data.frame(BI = 0.8, PD = 0.8, COM = 0.8, COL = 0.8, PI = 0.8)
+freq.pct$A4 <- data.frame(BI = 0.25, PD = 0.25, COM = 0.25, COL = 0.25, PI = 0.25)
+freq.pct$A5 <- data.frame(BI = 0.2, PD = 0.2, COM = 0.2, COL = 0.2, PI = 0.2)
+
+loss.pct <- list()
+loss.pct$A0 <- data.frame(BI = 1, PD = 1, COM = 1, COL = 1, PI = 1)
+loss.pct$A1 <- data.frame(BI = 1.03, PD = 1.03, COM = 1.03, COL = 1.03, PI = 1.03)
+loss.pct$A2 <- data.frame(BI = 1.08, PD = 1.08, COM = 1.08, COL = 1.08, PI = 1.08)
+loss.pct$A3 <- data.frame(BI = 1.2, PD = 1.2, COM = 1.2, COL = 1.2, PI = 1.2)
+loss.pct$A4 <- data.frame(BI = 1.3, PD = 1.3, COM = 1.3, COL = 1.3, PI = 1.3)
+loss.pct$A5 <- data.frame(BI = 1.35, PD = 1.35, COM = 1.35, COL = 1.35, PI = 1.35)
+
+
+safeline.prop.aut <- list(Personal = data.frame(time = seq(min(time.frame), max(time.frame) + 1, by = 0.25),
+                                                A0 = rep(0.34, length(time.frame)*4 +1 ),
+                                                A1 = rep(1, length(time.frame)*4+1),
+                                                A2 = rep(1, length(time.frame)*4+1)),
+                        Commercial = data.frame(time = seq(min(time.frame), max(time.frame) + 1, by = 0.25),
+                                                A0 = rep(0.34, length(time.frame)*4+1),
+                                                A1 = rep(1, length(time.frame)*4+1),
+                                                A2 = rep(1, length(time.frame)*4+1)))
+
+
+
+
+test <- model(time.frame = time.frame, 
+              func.personal = func.personal, 
+              func.commercial = func.commercial, 
+              param.personal = param.personal, 
+              param.commercial = param.commercial,
+              exp.growth.personal = exp.growth.personal, 
+              exp.growth.commercial = exp.growth.personal,
+              safeline.prop.aut = safeline.prop.aut,
+              freq.pct = freq.pct,
+              loss.pct = loss.pct)
+  
+```
+
+
+
+
+```{r, warning=FALSE}
+
+plots.tmp <- plot.func(predict.df = test$df)
+
+multiplot(plots.tmp$Autonomy.evolution.personal, plots.tmp$Autonomy.evolution, plots.tmp$Autonomy.evolution.commercial, cols = 2)
+
+plots.tmp$frequency.Personal
+plots.tmp$amount.Personal
+
+plots.tmp$frequency.Commercial
+plots.tmp$amount.Commercial
+
+
+
+```
+
+
+
+

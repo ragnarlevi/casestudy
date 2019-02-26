@@ -364,18 +364,14 @@ plot.func <- function(predict.df){
 
 
 
-
-
-
-
 model <- function(time.frame, func.personal, func.commercial, param.personal, param.commercial,exp.growth.personal, exp.growth.commercial,
-                  safeline.prop.aut, freq.pct, loss.pct){
+                  safelife.prop.aut, freq.pct, loss.pct){
   # time.frame i the time frame we are considering
   # func.personal - differential function for personal
   # func.commerfcial - differential function for commercial
   # param.personal and param.commercial - paramteter for the differential function is a list of functions
   # exp.growth.xxxx - for differential equation How much is carbia autonomous market growing (Exposre for whole of carbia)
-  # safeline.prop.aut - proportions that safelife wants
+  # safelife.prop.aut - proportions that safelife wants
   # freq.pct - frequency loss/gains for the autonomous levels for each coverage
   # loss.pct - amount pct loss/gains for aut lvels for each coverage
   
@@ -459,7 +455,7 @@ model <- function(time.frame, func.personal, func.commercial, param.personal, pa
 
       for(l in lvls){
         # multiply exposure with marketshare
-        tmp.exposure <- autonomyChange[[type]]$out[i, l]*safeline.prop.aut[[type]][safeline.prop.aut[[type]]$time == time, l]
+        tmp.exposure <- autonomyChange[[type]]$out[i, l]*safelife.prop.aut[[type]][safelife.prop.aut[[type]]$time == time, l]
 
         predict.df$Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == type & predict.df$Autonomy == l] <- tmp.exposure
 
@@ -524,3 +520,249 @@ model <- function(time.frame, func.personal, func.commercial, param.personal, pa
   
   return(ret)
 }
+
+
+
+freq.loss.tidy <- function(freq.pct, loss.pct){
+  
+  for(i in names(freq.pct)){
+    freq.pct[[i]]$Autonomy <- i
+    loss.pct[[i]]$Autonomy <- i
+  }
+  
+  
+  tmp <- full_join(do.call(what = rbind, args = freq.pct), do.call(what = rbind, args = loss.pct), by = c("time", "Autonomy"))
+  
+  tmp$Year <- 2018 + ceiling(tmp$time)
+  tmp$Qtr <- (tmp$time * 4) %% 4
+  tmp$Qtr[tmp$Qtr == 0] <- 4
+  
+ return(tmp[, !(names(tmp) %in% c("time")), drop = F])
+  
+}
+
+# freq.loss.tidy(freq.pct = freq.pct, loss.pct = loss.pct)
+
+
+
+model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia.exposure, carb.commercial.pct, carb.personal.pct, freq.pct, loss.pct){
+  # time frame
+  # autocar
+  # glm.list <- the glm list
+  # safelife.market.share
+  # carb.personal.pct 
+  # carb.commercial.pct 
+  # carbia.exposure
+  
+  lvls <- c("A0", "A1", "A2")
+  # estimates for A0 from the glm model
+  estimates.A0 <- A0initialParam(glm.list = glm.list) 
+  claims.estimates <- autonomyPremium(estimates.A0 = estimates.A0, type = "same", time.frame = time.frame, start.year = 2019, lvls = lvls)
+  claims.estimates$RiskClass <- as.character(claims.estimates$RiskClass)
+  
+  # The Risk Classes are same for A0 and A1
+  # For A2 we only consider vehicle size 
+  
+  # Create tmp data frame with autonomy
+  
+  tmp <- claims.estimates[claims.estimates$Autonomy == "A2", ]
+  # remove then add back
+  claims.estimates <- claims.estimates[claims.estimates$Autonomy != "A2", ]
+  # Change  Risk Class
+  tmp$RiskClass[substr(tmp$RiskClass,1,1) == "S"] <- "Small" 
+  tmp$RiskClass[substr(tmp$RiskClass,1,1) == "M"] <- "Medium" 
+  tmp$RiskClass[substr(tmp$RiskClass,1,1) == "L"] <- "Large"
+
+  tmp <- aggregate(formula = . ~ Type + RiskClass + Qtr + Year + Autonomy, data = tmp, FUN = mean)  
+  
+  
+  claims.estimates <- rbind(claims.estimates, tmp)
+  
+  # calculate proportions
+  df.main <-  autocar
+  df.main$RiskClass <- as.character(df.main$RiskClass)
+  
+  prop <- riskClassProp(df.main = autocar, time.frame = time.frame, start.year = 2019, lvls = lvls)
+  prop$RiskClass <- as.character(prop$RiskClass)
+  # we need to change according to the A2 new risk classes
+  
+  tmp <- prop[prop$Autonomy == "A2", ]
+  # remove then add back
+  prop <- prop[prop$Autonomy != "A2", ]
+  # Change  Risk Class
+  tmp$RiskClass[substr(tmp$RiskClass,1,1) == "S"] <- "Small" 
+  tmp$RiskClass[substr(tmp$RiskClass,1,1) == "M"] <- "Medium" 
+  tmp$RiskClass[substr(tmp$RiskClass,1,1) == "L"] <- "Large"
+  
+  tmp <- aggregate(formula = . ~ Type + RiskClass + Qtr + Year + Autonomy, data = tmp, FUN = sum)  
+  # then we need to divide we are assuming same every year
+  tmp.p.total <- sum(tmp$prop[tmp$Type == "Personal"  & tmp$Qtr == "1" & tmp$Year == 2019 & tmp$Autonomy == "A2"])
+  tmp.c.total <- sum(tmp$prop[tmp$Type == "Commercial"  & tmp$Qtr == "1" & tmp$Year == 2019 & tmp$Autonomy == "A2"])
+  
+  tmp$prop[tmp$Type == "Personal"] <- tmp$prop[tmp$Type == "Personal"]/tmp.p.total
+  tmp$prop[tmp$Type == "Commercial"] <- tmp$prop[tmp$Type == "Commercial"]/tmp.c.total
+  
+  prop <- rbind(prop, tmp)
+  
+  # next we set the exposure we transfrom the date frames so we can multiply them more easily
+  exposure <- exposure.tidy(safelife.market.share = safelife.market.share, 
+                            carbia.exposure = carbia.exposure, 
+                            carb.commercial.pct = carb.commercial.pct, 
+                            carb.personal.pct = carb.commercial.pct)
+  
+  # Finally we add stuff
+  predict.df <- full_join(claims.estimates, prop, by = c("Qtr","RiskClass", "Type", "Autonomy", "Year"))
+  predict.df$Qtr <- as.numeric(predict.df$Qtr)
+  predict.df <- left_join(x = predict.df, y = exposure,  by = c("Qtr", "Type", "Autonomy", "Year"))
+  
+  # Then we multiply prop with exposure to adjust the Risk Class exposure
+  
+  predict.df$Exposure <- predict.df$Exposure*predict.df$prop
+  
+  # loss and frequency multpliers
+  multipliers <- freq.loss.tidy(freq.pct = freq.pct, loss.pct = loss.pct)
+  
+  predict.df <- left_join(x = predict.df, y = multipliers, by = c("Autonomy", "Year", "Qtr"))
+  
+  # Ajust frequency of claims and amount of claims
+  predict.df$NC_BI <- predict.df$NC_BI*predict.df$NC_BI.pct
+  predict.df$NC_PD <- predict.df$NC_PD*predict.df$NC_PD.pct
+  predict.df$NC_COM <- predict.df$NC_COM*predict.df$NC_COM.pct
+  predict.df$NC_COL <- predict.df$NC_COL*predict.df$NC_COL.pct
+  predict.df$NC_PI <- predict.df$NC_PI*predict.df$NC_PI.pct
+  
+  predict.df$AAC_BI <- predict.df$AAC_BI*predict.df$AAC_BI.pct
+  predict.df$AAC_PD <- predict.df$AAC_PD*predict.df$AAC_PD.pct
+  predict.df$AAC_COM <- predict.df$AAC_COM*predict.df$AAC_COM.pct
+  predict.df$AAC_COL <- predict.df$AAC_COL*predict.df$AAC_COL.pct
+  predict.df$AAC_PI <- predict.df$AAC_PI*predict.df$AAC_PI.pct
+  
+  
+  predict.df$pure.premium.BI <- predict.df$NC_BI*predict.df$AAC_BI*predict.df$Exposure
+  predict.df$pure.premium.PD <- predict.df$NC_PD*predict.df$AAC_PD*predict.df$Exposure
+  predict.df$pure.premium.COM <- predict.df$NC_COM*predict.df$AAC_COM*predict.df$Exposure
+  predict.df$pure.premium.COL <- predict.df$NC_COL*predict.df$AAC_COL*predict.df$Exposure
+  predict.df$pure.premium.PI <- predict.df$NC_PI*predict.df$AAC_PI*predict.df$Exposure
+  
+  # We are interested in the loss per exposure also
+  predict.df$loss.BI <- predict.df$NC_BI*predict.df$AAC_BI
+  predict.df$loss.PD <- predict.df$NC_PD*predict.df$AAC_PD
+  predict.df$loss.COM <- predict.df$NC_COM*predict.df$AAC_COM
+  predict.df$loss.COL <- predict.df$NC_COL*predict.df$AAC_COL
+  predict.df$loss.PI <- predict.df$NC_PI*predict.df$AAC_PI
+  
+  # create the time column
+  predict.df$time <- predict.df$Year + 2.5*as.numeric(predict.df$Qtr)/10
+  
+  # Rbind the historical data but first we need to make sure the columns are the same
+  tmp <- autocar[, c("Year", "Qtr", "RiskClass", "Type", "Exposure", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI", "AAC_BI", "AAC_PD", "AAC_COM", "AAC_COL", "AAC_PI", "time")]
+  
+  tmp$Autonomy <- "A0"
+  tmp <- findProportions(df.main = tmp)
+  
+  # We have to make sure the NC column is per exposure like  in the predict data frame
+  tmp$NC_BI <- tmp$NC_BI/tmp$Exposure
+  tmp$NC_PD <- tmp$NC_PD/tmp$Exposure
+  tmp$NC_COM <- tmp$NC_COM/tmp$Exposure
+  tmp$NC_COL <- tmp$NC_COL/tmp$Exposure
+  tmp$NC_PI <- tmp$NC_PI/tmp$Exposure
+  
+  
+  
+  # pure premium
+  tmp$pure.premium.BI <- tmp$NC_BI*tmp$AAC_BI*tmp$Exposure
+  tmp$pure.premium.PD <- tmp$NC_PD*tmp$AAC_PD*tmp$Exposure
+  tmp$pure.premium.COM <- tmp$NC_COM*tmp$AAC_COM*tmp$Exposure
+  tmp$pure.premium.COL <- tmp$NC_COL*tmp$AAC_COL*tmp$Exposure
+  tmp$pure.premium.PI <- tmp$NC_PI*tmp$AAC_PI*tmp$Exposure
+  
+  # loss
+  tmp$loss.BI <- tmp$NC_BI*tmp$AAC_BI
+  tmp$loss.PD <- tmp$NC_PD*tmp$AAC_PD
+  tmp$loss.COM <- tmp$NC_COM*tmp$AAC_COM
+  tmp$loss.COL <- tmp$NC_COL*tmp$AAC_COL
+  tmp$loss.PI <- tmp$NC_PI*tmp$AAC_PI
+  
+  # add multipliers, they are just one
+  tmp$NC_BI.pct <- 1
+  tmp$NC_PD.pct <- 1
+  tmp$NC_COM.pct <- 1
+  tmp$NC_COL.pct <- 1
+  tmp$NC_PI.pct <- 1
+  
+  tmp$AAC_BI.pct <- 1
+  tmp$AAC_PD.pct <- 1
+  tmp$AAC_COM.pct <- 1
+  tmp$AAC_COL.pct <- 1
+  tmp$AAC_PI.pct <- 1
+  
+  
+  
+  
+  # We need to have the followign column to use rbind but these information is missing
+  tmp$carb.pct <- -99
+  tmp$carbia_exposure <- -99
+  tmp$safelife.pct <- -99
+  
+  tmp$time <- tmp$Year + 2.5*as.numeric(tmp$Qtr)/10
+  tmp$Qtr <- as.numeric(tmp$Qtr)
+  
+  
+  # make sure the columns match
+  tmp <- tmp[, names(predict.df), drop = F]
+  # bind them
+  predict.df <- rbind(predict.df, tmp)
+  
+  return(predict.df)
+  
+}
+
+exposure.tidy <- function( safelife.market.share, carbia.exposure, carb.commercial.pct, carb.personal.pct){
+  
+  safelife.market.share <- melt(safelife.market.share, id.vars = "time")
+  names(safelife.market.share)[names(safelife.market.share) %in% c("variable")] <- "Autonomy"
+  names(safelife.market.share)[names(safelife.market.share) %in% c("value")] <- "safelife.pct"
+  
+  carbia.exposure <-  melt(carbia.exposure, id.vars = "time")
+  names(carbia.exposure)[names(carbia.exposure) %in% c("variable")] <- "Type"
+  names(carbia.exposure)[names(carbia.exposure) %in% c("value")] <- "carbia_exposure"
+  
+  carb.commercial.pct <-  melt(carb.commercial.pct, id.vars = "time")
+  names(carb.commercial.pct)[names(carb.commercial.pct) %in% c("variable")] <- "Autonomy"
+  names(carb.commercial.pct)[names(carb.commercial.pct) %in% c("value")] <- "carb.pct"
+  # add type
+  carb.commercial.pct$Type <- "Commercial"
+  carb.personal.pct <-  melt(carb.personal.pct, id.vars = "time")
+  names(carb.personal.pct)[names(carb.personal.pct) %in% c("variable")] <- "Autonomy"
+  names(carb.personal.pct)[names(carb.personal.pct) %in% c("value")] <- "carb.pct"
+  carb.personal.pct$Type <- "Personal"
+  
+  # now we make one large 
+  
+  exposure <- as.data.frame(rbind(carb.commercial.pct, carb.personal.pct))
+  exposure <- as.data.frame(full_join(x = exposure, y = carbia.exposure, by = c("Type", "time")))
+  exposure <- as.data.frame(full_join(x = exposure, y = safelife.market.share, by = c("Autonomy", "time")))
+  
+  # then we multply the carb.pct with carbia eposure to get the "correct" carbia eposire
+  
+  exposure$carbia_exposure <- exposure$carbia_exposure*exposure$carb.pct
+  # Then we fin the safelife exposure
+  exposure$Exposure <- exposure$safelife.pct*exposure$carbia_exposure
+  
+  # Finally add Year and Quarter
+  exposure$Year <- 2018 + ceiling(exposure$time)
+  exposure$Qtr <- (exposure$time * 4) %% 4
+  exposure$Qtr[exposure$Qtr == 0] <- 4
+  
+  return(exposure[, c("Autonomy", "carb.pct", "Type", "carbia_exposure", "safelife.pct", "Exposure", "Year", "Qtr"), drop = F])
+}
+
+
+history.tidy <- function(autocar){
+  
+
+  
+  
+  
+}
+

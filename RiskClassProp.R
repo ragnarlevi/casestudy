@@ -27,7 +27,6 @@ riskClassProp <- function(df.main, time.frame, start.year = 2019, lvls){
   }
   
 # take average
-  
 tmp.prop <- do.call(what = cbind, args = tmp.prop)
 prop.personal <- rowSums(x = tmp.prop)/dim(tmp.prop)[2]
 

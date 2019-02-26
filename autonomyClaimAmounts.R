@@ -2,12 +2,12 @@
 
 
 # Setting the glm.list as a nice data frame
-A0initialParam <- function(glm.list, refine){
+A0initialParam <- function(glm.list){
   # glm.list - glm list created by GLM
   # refine - what instance of data cleaning
   
-  df.number <- glm[[refine]]$Number$df
-  df.amount <- glm[[refine]]$Amount$df
+  df.number <- glm.list$Number$df
+  df.amount <- glm.list$Amount$df
   # We need to have the coverage as columns but not as a row factor/strings
   
   tmp.n.bi <- df.number[df.number$coverage == "BI", names(df.number) %in% c("Type", "RiskClass", "Qtr", "NPerExposure")]

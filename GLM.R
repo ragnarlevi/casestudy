@@ -27,28 +27,24 @@ autocar$DriverRisk[grepl("^..L", x = autocar$RiskClass)] <- "L"
 autocar$DriverRisk[grepl("^..A", x = autocar$RiskClass)] <- "A"
 autocar$DriverRisk[grepl("^..H", x = autocar$RiskClass)] <- "H"
 
-autocar$Qtr <- as.factor(autocar$Qtr)
-autocar$Type <- as.factor(autocar$Type)
-autocar$VehicleSize <- as.factor(autocar$VehicleSize)
-autocar$DriverAge <- as.factor(autocar$DriverAge)
-autocar$DriverRisk <- as.factor(autocar$DriverRisk)
+# autocar$Qtr <- as.factor(autocar$Qtr)
+# autocar$Type <- as.factor(autocar$Type)
+# autocar$VehicleSize <- as.factor(autocar$VehicleSize)
+# autocar$DriverAge <- as.factor(autocar$DriverAge)
+# autocar$DriverRisk <- as.factor(autocar$DriverRisk)
+autocar$time <- autocar$Year + 2.5*as.numeric(autocar$Qtr)/10
 
 # GLM model ----
 #We make a list of glm's (outlier included) divided into raw data (outlier) and refined data
 glm <- list()
 
 #Model number of claims in every claim category
-glm$ol$Number$Model$BI <- glm(data = autocar, formula = NC_BI ~ Qtr + Type + VehicleSize + DriverAge + DriverRisk + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
-glm$ol$Number$Model$PD <- glm(data = autocar, formula = NC_PD ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
-glm$ol$Number$Model$COM <- glm(data = autocar, formula = NC_COM ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
-glm$ol$Number$Model$COL <- glm(data = autocar, formula = NC_COL ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
-glm$ol$Number$Model$PI <- glm(data = autocar, formula = NC_PI ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
 
-
-#show results
-# glm$ol
-# summary(glm$ol$Number$Model$BI)
-
+glm$ol$Number$Model$BI <- glm(data = autocar, formula = NC_BI ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+glm$ol$Number$Model$PD <- glm(data = autocar, formula = NC_PD ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+glm$ol$Number$Model$COM <- glm(data = autocar, formula = NC_COM ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+glm$ol$Number$Model$COL <- glm(data = autocar, formula = NC_COL ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+glm$ol$Number$Model$PI <- glm(data = autocar, formula = NC_PI ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
 
 
 #First, we create a new variable called average claim amount = Total Claim Amount / Number of Claims
@@ -60,22 +56,18 @@ autocar$AAC_PI <- autocar$AC_PI/autocar$NC_PI
 
 
 #Model average amounts using gamma glm
-glm$ol$Amount$Model$BI <- glm(data = autocar, formula = AAC_BI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_BI)
-glm$ol$Amount$Model$PD <- glm(data = autocar, formula = AAC_PD~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_PD)
-glm$ol$Amount$Model$COM <- glm(data = autocar, formula = AAC_COM~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_COM)
-glm$ol$Amount$Model$COL <- glm(data = autocar, formula = AAC_COL~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_COL)
-glm$ol$Amount$Model$PI <- glm(data = autocar, formula = AAC_PI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_PI)
+glm$ol$Amount$Model$BI <- glm(data = autocar, formula = AAC_BI ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_BI)
+glm$ol$Amount$Model$PD <- glm(data = autocar, formula = AAC_PD ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_BI)
+glm$ol$Amount$Model$COM <- glm(data = autocar, formula = AAC_COM ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_BI)
+glm$ol$Amount$Model$COL <- glm(data = autocar, formula = AAC_COL ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_BI)
+glm$ol$Amount$Model$PI <- glm(data = autocar, formula = AAC_PI ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"),weights = NC_BI)
 
-#summary(glm$ol$Amount$Model$PI)
 
 
 # Filter the data -----
-autocar$time <- autocar$Year + 2.5*as.numeric(autocar$Qtr)/10
 
-autocar$time
-
-melt.autocar <- melt(autocar[, names(autocar) %in% c("time", "AC_COM", "RiskClass", "Type", "NC_COM")] , id = c("Type", "RiskClass", "time"))
-#ggplot(melt.autocar[melt.autocar$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass))  + facet_wrap( ~ variable)
+ melt.autocar <- melt(autocar[, names(autocar) %in% c("time", "AC_COM", "RiskClass", "Type", "NC_COM")] , id = c("Type", "RiskClass", "time"))
+# ggplot(melt.autocar[melt.autocar$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass))  + facet_wrap( ~ variable)
 
 # linear regression for amount comprehensive and number comprehnsive
 lm.no.outlier <- list()
@@ -115,47 +107,178 @@ for(j in unique(as.character(autocar.tmp$Type))){
 melt.autocar.refined <- melt(autocar.refined[, names(autocar.refined) %in% c("time", "AC_COM", "RiskClass", "Type", "NC_COM")] , id = c("Type", "RiskClass", "time"))
 
 # Figure For Personal types
-# p1 <- ggplot(melt.autocar[melt.autocar$Type == "Personal",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
-#   geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Personal raw data")
-# p2 <- ggplot(melt.autocar.refined[melt.autocar.refined$Type == "Personal",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
-#   geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Personal refined data")
+p1 <- ggplot(melt.autocar[melt.autocar$Type == "Personal",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+  geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Personal raw data")
+p2 <- ggplot(melt.autocar.refined[melt.autocar.refined$Type == "Personal",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+  geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Personal refined data")
 
 # Figure for Commercial types
-# p3 <- ggplot(melt.autocar[melt.autocar$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
-#   geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Commercial raw data")
-# p4 <- ggplot(melt.autocar.refined[melt.autocar.refined$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
-#   geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Commercial refined data")
+p3 <- ggplot(melt.autocar[melt.autocar$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+  geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Commercial raw data")
+p4 <- ggplot(melt.autocar.refined[melt.autocar.refined$Type == "Commercial",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
+  geom_vline(xintercept = 2010.75) + facet_wrap( ~ variable, scales = "free") + ggtitle("Commercial refined data")
 
 
-# multiplot(p1,p2, p3, p4, plotlist = NULL, cols = 1)
+#multiplot(p1,p2, p3, p4, plotlist = NULL, cols = 1)
 
 # multiplot(p3,p4, plotlist = NULL, cols = 1)
 
 
 
-#Perform GLM's for refined data (after adjusting the outlier)
+# Perform GLM's for refined data (after adjusting the outlier) ----
 
-#Model number of claims in every claim category
-glm$rd$Number$Model$BI <- glm(data = autocar.refined, formula = NC_BI ~ Qtr + Type + VehicleSize + DriverAge + DriverRisk + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
-glm$rd$Number$Model$PD <- glm(data = autocar.refined, formula = NC_PD ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
-glm$rd$Number$Model$COM <- glm(data = autocar.refined, formula = NC_COM ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
-glm$rd$Number$Model$COL <- glm(data = autocar.refined, formula = NC_COL ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
-glm$rd$Number$Model$PI <- glm(data = autocar.refined, formula = NC_PI ~ Qtr + Type + VehicleSize+DriverAge+DriverRisk+ offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
 
-#show results
-glm$rd
-summary(glm$ol$Number$Model$BI)
+# NC_BI model ----
+tmp <- glm(data = autocar.refined, formula = NC_BI ~ time + factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp)
+# remove time, no frequency inflation
+tmp <- glm(data = autocar.refined, formula = NC_BI ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp)
+# remove Qtr as well
+tmp_2 <- glm(data = autocar.refined, formula = NC_BI ~ factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp_2)
+anova(tmp_2, tmp, test = "F") 
+# yes reomve tmp
+glm$rd$Number$Model$BI <- tmp_2 ##############################################--
+remove(tmp, tmp_2)
 
-#Model average amounts using gamma glm (for refined data)
-glm$rd$Amount$Model$BI <- glm(data = autocar.refined, formula = AAC_BI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_BI)
-glm$rd$Amount$Model$PD <- glm(data = autocar.refined, formula = AAC_PD~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_PD)
-glm$rd$Amount$Model$COM <- glm(data = autocar.refined, formula = AAC_COM~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_COM)
-glm$rd$Amount$Model$COL <- glm(data = autocar.refined, formula = AAC_COL~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_COL)
-glm$rd$Amount$Model$PI <- glm(data = autocar.refined, formula = AAC_PI~Qtr+Type+VehicleSize+DriverAge+DriverRisk, family = quasi(variance="mu^2", link = "log"), weights = NC_PI)
+# NC_PD model ----
+tmp <- glm(data = autocar.refined, formula = NC_PD ~ time + factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp)
+# remove time
+tmp <- glm(data = autocar.refined, formula = NC_PD ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp)
+# remove Qtr as well
+tmp_2 <- glm(data = autocar.refined, formula = NC_PD ~ factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp_2)
+anova(tmp_2, tmp, test = "F") 
+# yes reomve tmp
+glm$rd$Number$Model$PD <- tmp_2 ##############################################--
+remove(tmp, tmp_2)
 
-summary(glm$rd$Amount$Model$PI)
+# NC_COM model ----
+tmp <- glm(data = autocar.refined, formula = NC_COM ~ time + factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp)
+# remove time
+tmp <- glm(data = autocar.refined, formula = NC_COM ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp)
+# remove Qtr as well
+tmp_2 <- glm(data = autocar.refined, formula = NC_COM ~ factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp_2)
+anova(tmp_2, tmp, test = "F") 
+# We include qtr
+glm$rd$Number$Model$COM <- tmp ##############################################--
+remove(tmp, tmp_2)
 
-# Finally get the estimates
+# NC_COL model----
+tmp <- glm(data = autocar.refined, formula = NC_COL ~ time + factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp)
+# remove time
+tmp <- glm(data = autocar.refined, formula = NC_COL ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp)
+# remove Qtr as well
+tmp_2 <- glm(data = autocar.refined, formula = NC_COL ~ factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp_2)
+anova(tmp_2, tmp, test = "F") 
+# We include qtr
+glm$rd$Number$Model$COL <- tmp ##############################################--
+remove(tmp, tmp_2)
+
+# NC_PI model ----
+tmp <- glm(data = autocar.refined, formula = NC_PI ~  time + factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp)
+# remove time
+tmp <- glm(data = autocar.refined, formula = NC_PI ~ factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp)
+# remove Qtr as well
+tmp_2 <- glm(data = autocar.refined, formula = NC_PI ~ factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk) + offset(log(Exposure)), family = quasi(variance="mu", link = "log"))
+summary(tmp_2)
+anova(tmp_2, tmp, test = "F") 
+# We remove qtr
+glm$rd$Number$Model$PI <- tmp_2 ##############################################--
+remove(tmp, tmp_2)
+
+
+# We only changed COM but we just make this var again for all
+autocar.refined$AAC_BI <- autocar.refined$AC_BI/autocar.refined$NC_BI
+autocar.refined$AAC_PD <- autocar.refined$AC_PD/autocar.refined$NC_PD
+autocar.refined$AAC_COM <- autocar.refined$AC_COM/autocar.refined$NC_COM
+autocar.refined$AAC_COL <- autocar.refined$AC_COL/autocar.refined$NC_COL
+autocar.refined$AAC_PI <- autocar.refined$AC_PI/autocar.refined$NC_PI
+
+
+# AAC_BI model ----
+tmp <- glm(data = autocar.refined, formula = AAC_BI ~ time + factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_BI)
+summary(tmp)
+tmp_2 <- glm(data = autocar.refined, formula = AAC_BI ~ time  + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_BI)
+summary(tmp_2)
+anova(tmp, tmp_2, test = "F") 
+# we include Qtr
+glm$rd$Amount$Model$BI <- tmp
+remove(tmp, tmp_2)
+
+# AAC_PD model ----
+tmp <- glm(data = autocar.refined, formula = AAC_PD ~ time + factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_PD)
+summary(tmp)
+tmp_2 <- glm(data = autocar.refined, formula = AAC_PD ~ time  + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_PD)
+summary(tmp_2)
+anova(tmp, tmp_2, test = "F") 
+# we include Qtr
+glm$rd$Amount$Model$PD <- tmp
+remove(tmp, tmp_2)
+
+## AAC_COM ----
+tmp <- glm(data = autocar.refined, formula = AAC_COM ~ time + factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_COM)
+summary(tmp)
+tmp_2 <- glm(data = autocar.refined, formula = AAC_COM ~ time  + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_COM)
+summary(tmp_2)
+anova(tmp, tmp_2, test = "F") 
+# we include Qtr
+glm$rd$Amount$Model$COM <- tmp
+remove(tmp, tmp_2)
+
+## AAC_COL ----
+tmp <- glm(data = autocar.refined, formula = AAC_COL ~ time + factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_COL)
+summary(tmp)
+tmp_2 <- glm(data = autocar.refined, formula = AAC_COL ~ time  + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_COL)
+summary(tmp_2)
+anova(tmp, tmp_2, test = "F") 
+# we include Qtr
+glm$rd$Amount$Model$COL <- tmp
+remove(tmp, tmp_2)
+
+## AAC_PI ----
+tmp <- glm(data = autocar.refined, formula = AAC_PI ~ time + factor(Qtr) + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_PI)
+summary(tmp)
+tmp_2 <- glm(data = autocar.refined, formula = AAC_PI ~ time  + factor(Type) + factor(VehicleSize) + factor(DriverAge) + factor(DriverRisk), family = quasi(variance="mu", link = "log"), weights = NC_PI)
+summary(tmp_2)
+anova(tmp, tmp_2, test = "F") 
+# we include Qtr
+glm$rd$Amount$Model$PI <- tmp
+remove(tmp, tmp_2)
+
+
+# Adjust COM ----
+# Because we basically lowerd the amount and number of the COM coverage we need to adjust the intercept because in the next years we can have another natural disaster
+
+ol <- sum(autocar$AAC_COM)
+rd <- sum(autocar.refined$AAC_COM)
+ol-rd
+(ol-rd)/ol
+ol/rd
+glm$rd$Amount$Model$COM$coefficients[names(glm$rd$Amount$Model$COM$coefficients) == "(Intercept)"] <- glm$rd$Amount$Model$COM$coefficients[names(glm$rd$Amount$Model$COM$coefficients) == "(Intercept)"]  + log(ol/rd)
+remove(ol, rd)
+
+ol <- sum(autocar$NC_COM)
+rd <- sum(autocar.refined$NC_COM)
+ol-rd
+(ol-rd)/ol
+ol/rd
+glm$rd$Number$Model$COM$coefficients[names(glm$rd$Amount$Model$COM$coefficients) == "(Intercept)"] <- glm$rd$Number$Model$COM$coefficients[names(glm$rd$Amount$Model$COM$coefficients) == "(Intercept)"]  + log(ol/rd)
+
+remove(ol, rd)
+
+# Finally get the estimates for each Risk Class, type, qtr etc..
 # get estimates
 for(i in 1:length(glm)){
   glm[[i]]$Number$df <- GetEstimates(Data.List = glm[[i]], m = "Number")
@@ -164,54 +287,3 @@ for(i in 1:length(glm)){
 }
 
 
-
-
-# Next we need to get our estimates # library that contains data frames to join data frames
-# Call our functions
-
-# df.main <- autocar
-# 
-# 
-# 
-# 
-# # Let's create a new data frame 
-# 
-# # We Need only keep what we realy need
-# SelectColumns <- c("Year", "Qtr", "RiskClass", "Type", "Exposure", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI",
-#                    "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI")
-# df.main <- df.main[, names(df.main) %in% SelectColumns]
-# # add autonomy Column
-# 
-# df.main$Autonomy <- "A0"
-# df.main$AutonomyProp <- 1
-# df.main$prop <- 1
-# 
-# # source what we need
-# source("functions.R")
-# source("growthFunctions.R")
-# 
-# 
-# 
-# test <- EstimateGrowth(Data.List = glm$rd, growth = growth, time.frame = time.frame, df.main = df.main, exposure = exposure.s2)
-# 
-# 
-# # plot to test
-# 
-# tmp <- test$prediction
-# tmp$time <- tmp$Year + 2.5*as.numeric(tmp$Qtr)/10
-# # Compare
-# melt.tmp <- melt(tmp[, names(tmp) %in% c("time", "AC_COL", "RiskClass", "Type", "NC_COL", "Autonomy")] , id = c("Type", "RiskClass", "time", "Autonomy"))
-# 
-# # Figure For Personal types
-# p1 <- ggplot(melt.tmp[melt.tmp$Type == "Personal" & melt.tmp$Autonomy == "A0",]) + geom_line(aes(x = time, y = value, color = RiskClass)) +
-#   facet_wrap( ~ variable, scales = "free") + ggtitle("Personal raw data") + geom_vline(xintercept = 2019)
-# p1
-# 
-# # are the estimates different?
-# 
-# estimates <- test$Data.List$Number$df
-# 
-# 
-# agg <- aggregate(formula = . ~ Autonomy + time, data = tmp[, names(tmp) %in% c("time", "Autonomy", "Exposure")] , FUN = sum)
-# 
-# ggplot(agg) + geom_line(aes(x = time, y = Exposure, color = Autonomy))

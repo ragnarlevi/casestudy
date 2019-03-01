@@ -565,60 +565,25 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   instances <- tmp.df
   rm(tmp.df)
   
-
-  # estimates for A0 from the glm model
-  # estimates.A0 <- A0initialParam(glm.list = glm.list)
-  # claims.estimates <- autonomyPremium(estimates.A0 = estimates.A0, type = "same", time.frame = time.frame, start.year = 2019, lvls = lvls)
-  # claims.estimates$RiskClass <- as.character(claims.estimates$RiskClass)
-  
-  # The Risk Classes are same for A0 and A1
-  # For A2 we only consider vehicle size 
-  
-  # Create tmp data frame with autonomy
-  
-  # tmp <- claims.estimates[claims.estimates$Autonomy == "A2", ]
-  # # remove then add back
-  # claims.estimates <- claims.estimates[claims.estimates$Autonomy != "A2", ]
-  # # Change  Risk Class
-  # tmp$RiskClass[substr(tmp$RiskClass,1,1) == "S"] <- "Small" 
-  # tmp$RiskClass[substr(tmp$RiskClass,1,1) == "M"] <- "Medium" 
-  # tmp$RiskClass[substr(tmp$RiskClass,1,1) == "L"] <- "Large"
-  # 
-  # tmp <- aggregate(formula = . ~ Type + RiskClass + Qtr + Year + Autonomy, data = tmp, FUN = mean)  
-  # 
-  # 
-  # claims.estimates <- rbind(claims.estimates, tmp)
   
   # calculate proportions
   df.main <-  autocar
   
   prop <- riskClassProp(df.main = autocar, time.frame = time.frame, start.year = 2019, lvls = lvls)
-  # prop$RiskClass <- as.character(prop$RiskClass)
-  # # we need to change according to the A2 new risk classes
-  # 
-  # tmp <- prop[prop$Autonomy == "A2", ]
-  # # remove then add back
-  # prop <- prop[prop$Autonomy != "A2", ]
-  # # Change  Risk Class
-  # tmp$RiskClass[substr(tmp$RiskClass,1,1) == "S"] <- "Small" 
-  # tmp$RiskClass[substr(tmp$RiskClass,1,1) == "M"] <- "Medium" 
-  # tmp$RiskClass[substr(tmp$RiskClass,1,1) == "L"] <- "Large"
-  # 
-  # tmp <- aggregate(formula = . ~ Type + RiskClass + Qtr + Year + Autonomy, data = tmp, FUN = sum)  
-  # # then we need to divide we are assuming same every year
-  # tmp.p.total <- sum(tmp$prop[tmp$Type == "Personal"  & tmp$Qtr == "1" & tmp$Year == 2019 & tmp$Autonomy == "A2"])
-  # tmp.c.total <- sum(tmp$prop[tmp$Type == "Commercial"  & tmp$Qtr == "1" & tmp$Year == 2019 & tmp$Autonomy == "A2"])
-  # 
-  # tmp$prop[tmp$Type == "Personal"] <- tmp$prop[tmp$Type == "Personal"]/tmp.p.total
-  # tmp$prop[tmp$Type == "Commercial"] <- tmp$prop[tmp$Type == "Commercial"]/tmp.c.total
-  # 
-  # prop <- rbind(prop, tmp)
-  
-  # next we set the exposure we transfrom the date frames so we can multiply them more easily
+
+  # get exposure from carbia and safelife number
   exposure <- exposure.tidy(safelife.market.share = safelife.market.share, 
                             carbia.exposure = carbia.exposure, 
                             carb.commercial.pct = carb.commercial.pct, 
-                            carb.personal.pct = carb.commercial.pct)
+                            carb.personal.pct = carb.personal.pct)
+  
+  
+  # tmp <- exposure
+  # tmp$time <- exposure$Year + 2.5*exposure$Qtr/10
+  # tmp <- tmp[, names(tmp) %in% c("Exposure", "time")]
+  # tmp <- aggregate(. ~ time, data =tmp, FUN = sum)
+  # 
+  # ggplot(data = tmp) + geom_line(mapping = aes(x = time, y = Exposure))
   
   # Finally we add stuff
   predict.df <- as.data.frame(full_join(instances, prop, by = c("Qtr","RiskClass", "Type", "Autonomy", "Year")))
@@ -632,6 +597,12 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   # Then we multiply prop with exposure to adjust the Risk Class exposure
   
   predict.df$Exposure <- predict.df$Exposure*predict.df$prop
+  # tmp <- predict.df
+  # tmp$time <- tmp$Year + 2.5*tmp$Qtr/10
+  # tmp <- tmp[, names(tmp) %in% c("Exposure", "time")]
+  # tmp <- aggregate(. ~ time, data =tmp, FUN = sum)
+  # 
+  # ggplot(data = tmp) + geom_line(mapping = aes(x = time, y = Exposure))
   
   # Now we use the model to get the exposure, dive Risk Class into 3 columns and remove the original
   predict.df$VehicleSize <- ""
@@ -700,33 +671,53 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   predict.df$AAC_COL <- predict.df$AAC_COL*predict.df$AAC_COL.pct
   predict.df$AAC_PI <- predict.df$AAC_PI*predict.df$AAC_PI.pct
   
-  # A2 only has 3 Classes So we 
+  predict.df$AC_BI <- predict.df$AC_BI*predict.df$AAC_BI.pct
+  predict.df$AC_PD <- predict.df$AC_PD*predict.df$AAC_PD.pct
+  predict.df$AC_COM <- predict.df$AC_COM*predict.df$AAC_COM.pct
+  predict.df$AC_COL <- predict.df$AC_COL*predict.df$AAC_COL.pct
+  predict.df$AC_PI <- predict.df$AC_PI*predict.df$AAC_PI.pct
+  
   
   predict.df$RiskClass <- paste(predict.df$VehicleSize, predict.df$DriverAge, predict.df$DriverRisk, sep = "")
   predict.df <- predict.df[, !(names(predict.df) %in% c("VehicleSize", "DriverAge", "DriverRisk"))]
   
+  
+  # A2 only has 3 Classes So we 
   # Next we need to aggregate A2
   
-  tmp <- predict.df[predict.df$Autonomy == "A2", ]
-  # remove then add back
-  predict.df <- predict.df[predict.df$Autonomy != "A2", ]
-  # Change  Risk Class
-  tmp$RiskClass[substr(tmp$RiskClass,1,1) == "S"] <- "Small" 
-  tmp$RiskClass[substr(tmp$RiskClass,1,1) == "M"] <- "Medium" 
-  tmp$RiskClass[substr(tmp$RiskClass,1,1) == "L"] <- "Large"
-  
-  # take mean
-  tmp <- aggregate(formula = . ~ Type + RiskClass + Qtr + Year + Autonomy, data = tmp, FUN = mean)  
-  # but we need to fix the proportion
-  # then we need to divide we are assuming same every year
-  tmp.p.total <- sum(tmp$prop[tmp$Type == "Personal"  & tmp$Qtr == "1" & tmp$Year == 2019 & tmp$Autonomy == "A2"])
-  tmp.c.total <- sum(tmp$prop[tmp$Type == "Commercial"  & tmp$Qtr == "1" & tmp$Year == 2019 & tmp$Autonomy == "A2"])
-
-  tmp$prop[tmp$Type == "Personal"] <- tmp$prop[tmp$Type == "Personal"]/tmp.p.total
-  tmp$prop[tmp$Type == "Commercial"] <- tmp$prop[tmp$Type == "Commercial"]/tmp.c.total
-
-  sum(tmp$prop[tmp$Type == "Personal" & tmp$Qtr == 1 & tmp$Year == 2019])
-  predict.df <- rbind(predict.df, tmp)
+  # tmp <- predict.df[predict.df$Autonomy == "A2", ]
+  # # remove then add back
+  # predict.df <- predict.df[predict.df$Autonomy != "A2", ]
+  # # Change  Risk Class
+  # tmp$RiskClass[substr(tmp$RiskClass,1,1) == "S"] <- "Small"
+  # tmp$RiskClass[substr(tmp$RiskClass,1,1) == "M"] <- "Medium"
+  # tmp$RiskClass[substr(tmp$RiskClass,1,1) == "L"] <- "Large"
+  # 
+  # # take sum
+  # tmp <- aggregate(formula = . ~ Type + RiskClass + Qtr + Year + Autonomy, data = tmp, FUN = sum)
+  # # but we need to take mean for each Risk Class
+  # # then we need to divide we are assuming same every year
+  # tmp$NC_BI <- tmp$NC_BI/9
+  # tmp$NC_PD <- tmp$NC_PD/9
+  # tmp$NC_COM <- tmp$NC_COM/9
+  # tmp$NC_COL <- tmp$NC_COL/9
+  # tmp$NC_PI <- tmp$NC_PI/9
+  # 
+  # tmp$AC_BI <- tmp$AC_BI/9
+  # tmp$AC_PD <- tmp$AC_PD/9
+  # tmp$AC_COM <- tmp$AC_COM/9
+  # tmp$AC_COL <- tmp$AC_COL/9
+  # tmp$AC_PI <- tmp$AC_PI/9
+  # 
+  # tmp$AAC_BI <- tmp$AAC_BI/9
+  # tmp$AAC_PD <- tmp$AAC_PD/9
+  # tmp$AAC_COM <- tmp$AAC_COM/9
+  # tmp$AAC_COL <- tmp$AAC_COL/9
+  # tmp$AAC_PI <- tmp$AAC_PI/9
+  # 
+  # 
+  # # sum(tmp$prop[tmp$Type == "Personal" & tmp$Qtr == 1 & tmp$Year == 2019])
+  # predict.df <- rbind(predict.df, tmp)
   
   # Rbind the historical data but first we need to make sure the columns are the same
 
@@ -785,6 +776,7 @@ exposure.tidy <- function( safelife.market.share, carbia.exposure, carb.commerci
   names(carb.commercial.pct)[names(carb.commercial.pct) %in% c("value")] <- "carb.pct"
   # add type
   carb.commercial.pct$Type <- "Commercial"
+  
   carb.personal.pct <-  melt(carb.personal.pct, id.vars = "time")
   names(carb.personal.pct)[names(carb.personal.pct) %in% c("variable")] <- "Autonomy"
   names(carb.personal.pct)[names(carb.personal.pct) %in% c("value")] <- "carb.pct"

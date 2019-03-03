@@ -280,10 +280,10 @@ remove(ol, rd)
 
 # Finally get the estimates for each Risk Class, type, qtr etc..
 # get estimates
-for(i in 1:length(glm)){
-  glm[[i]]$Number$df <- GetEstimates(Data.List = glm[[i]], m = "Number")
-  glm[[i]]$Amount$df <- GetEstimates(Data.List = glm[[i]], m = "Amount")
-    
-}
+# for(i in 1:length(glm)){
+#   glm[[i]]$Number$df <- GetEstimates(Data.List = glm[[i]], m = "Number")
+#   glm[[i]]$Amount$df <- GetEstimates(Data.List = glm[[i]], m = "Amount")
+#     
+# }
 
 

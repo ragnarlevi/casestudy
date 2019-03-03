@@ -39,238 +39,6 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 }
 
 
-# CHeck if a numeric is empty or not
-isEmpty <- function(x) {
-  return(identical(x, numeric(0)))
-}
-
-calcEstimates <- function(df.main, model){
-  # df.main data frame with our information
-  # model, list of number or amount models
-
-  
-  df.main$estimate <- 0
-  
-  
-  for(i in 1:dim(df.main)[1]){
-    # Just to get shorter name
-    
-    tmp.coverage <- as.character(df.main$coverage[i])
-    # tmp.coverage <- "COL"
-    tmp <- as.data.frame(model[[tmp.coverage]]$coefficient)
-    names(tmp) <- c("coef")
-    # intercept is always the same
-    beta_intercept <-  tmp$coef[rownames(tmp) == "(Intercept)"]
-    
-    
-    
-    # Qtr
-    tmp.qtr <- as.numeric(df.main$Qtr[i])
-    tmp.qtr <- paste("Qtr",tmp.qtr, sep ="")
-    if(isEmpty(tmp$coef[rownames(tmp) == tmp.qtr])){
-      # is empty
-      beta_qtr <- 0
-    }else{
-      # not empy
-      beta_qtr <- tmp$coef[rownames(tmp) == tmp.qtr]
-    }
-    
-    # Type
-    tmp.type <- as.character(df.main$Type[i])
-    tmp.type <- paste("Type",tmp.type, sep ="")
-    if(isEmpty(tmp$coef[rownames(tmp) == tmp.type])){
-      # is empty
-      beta_type <- 0
-    }else{
-      # not empy
-      beta_type <- tmp$coef[rownames(tmp) == tmp.type]
-    }
-    
-    # VehicleSize
-    # First letter
-    tmp.size <- toupper(substr(df.main$RiskClass[i],1,1))
-    tmp.size <- paste("VehicleSize",tmp.size, sep ="")
-    if(isEmpty(tmp$coef[rownames(tmp) == tmp.size])){
-      # is empty
-      beta_size <- 0
-    }else{
-      # not empy
-      beta_size <- tmp$coef[rownames(tmp) == tmp.size]
-    }
-    
-    # VehicleAge
-    # second letter
-    tmp.age <- toupper(substr(df.main$RiskClass[i],2,2))
-    tmp.age <- paste("DriverAge",tmp.age, sep ="")
-    if(isEmpty(tmp$coef[rownames(tmp) == tmp.age])){
-      # is empty
-      beta_age <- 0
-    }else{
-      # not empy
-      beta_age <- tmp$coef[rownames(tmp) == tmp.age]
-    }
-    
-    
-    
-    # VehicleRisk
-    # third letter
-    tmp.risk <- toupper(substr(df.main$RiskClass[i],3,3))
-    tmp.risk <- paste("DriverRisk",tmp.risk, sep ="")
-    if(isEmpty(tmp$coef[rownames(tmp) == tmp.risk])){
-      # is empty
-      beta_risk <- 0
-    }else{
-      # not empy
-      beta_risk <- tmp$coef[rownames(tmp) == tmp.risk]
-    }
-    
-    
-    # Finnaly we insert our esitmate
-    df.main$estimate[i] <- exp(beta_intercept + beta_qtr + beta_type + beta_size + beta_age + beta_risk)
-    
-  }
-  
-  return(df.main)
-}
-
-
-GetEstimates <- function(Data.List, m){
-  # Data.list for example gld$rd
-  # m, "Number" or "Amount"
-  
-  # coverage
-  df.1 <- data.frame(coverage = names(Data.List[[m]]$Model))
-  # Type
-  df.2 <- data.frame(Type = unique(autocar$Type))
-  # Risk Classes
-  df.3 <- data.frame(RiskClass = unique(autocar$RiskClass))
-  # quarters
-  df.4 <- data.frame(Qtr = c("1","2","3","4"))
-  
-  df.main <- merge(df.1, df.2)
-  df.main <- merge(df.main, df.3)
-  df.main <- merge(df.main, df.4)
-  df.main <- as.data.frame(df.main)
-  # df.main$VehicleSize <- substr(df.main$RiskClass,1,1)
-  # df.main$DriverAge <- substr(df.main$RiskClass,2,2)
-  # df.main$DriverRisk <- substr(df.main$RiskClass,3,3)
-  # df.main$Exposure <- 1
-  # predict( object = model$BI , newdata =df.main)
-  
-  
-  df.main <- calcEstimates(df.main = df.main, model = Data.List[[m]]$Model)
-  # change the Names
-  if(m == "Number"){
-    names(df.main)[names(df.main) == "estimate"] <- "NPerExposure"
-  }else{
-    names(df.main)[names(df.main) == "estimate"] <- "AAC"
-  }
-  
-  return(df.main)
-  
-  
-}
-loop.fun <- function(j, i, df.main, loop.df, growth, start.year, df.number, df.amount, exposure){
-  tmp <- df.main[1,]
-  tmp$Year <- start.year + time.frame[i]
-  tmp$Qtr <- loop.df$Qtr[j]
-  tmp$RiskClass <- as.character(loop.df$RiskClass[j])
-  tmp$Type <- as.character(loop.df$Type[j])
-  tmp$Autonomy <-  loop.df$Autonomy[j]
-  
-  
-  myvar <<- tmp
-  # Here is where the fun part comes/ this is something we really don't know about
-   tmp$Exposure <- growth(Type = as.character(tmp$Type),
-                         Qtr = as.numeric(tmp$Qtr),
-                         RiskClass = as.character(tmp$RiskClass),
-                         Year = tmp$Year,
-                         exposure = exposure,
-                         Autonomy = as.character(tmp$Autonomy)
-                         )
-  # add numbers
-  # We need to get right row
-  bool <- df.number$Type == tmp$Type & df.number$RiskClass == tmp$RiskClass & df.number$Qtr == tmp$Qtr
-  tmp$NC_BI <- tmp$Exposure*df.number$NPerExposure[df.number$coverage == "BI" & bool]
-  tmp$NC_PD <- tmp$Exposure*df.number$NPerExposure[df.number$coverage == "PD" & bool]
-  tmp$NC_COM <- tmp$Exposure*df.number$NPerExposure[df.number$coverage == "COM" & bool]
-  tmp$NC_COL <- tmp$Exposure*df.number$NPerExposure[df.number$coverage == "COL" & bool]
-  tmp$NC_PI <- tmp$Exposure*df.number$NPerExposure[df.number$coverage == "PI" & bool]
-  
-  # and for the amount
-  bool <- df.amount$Type == tmp$Type & df.amount$RiskClass == tmp$RiskClass & df.amount$Qtr == tmp$Qtr
-  tmp$AC_BI <- df.amount$AAC[df.amount$coverage == "BI" & bool]*tmp$NC_BI
-  tmp$AC_PD <- df.amount$AAC[df.amount$coverage == "PD" & bool]*tmp$NC_PD
-  tmp$AC_COM <- df.amount$AAC[df.amount$coverage == "COM" & bool]*tmp$NC_COM
-  tmp$AC_COL <- df.amount$AAC[df.amount$coverage == "COL" & bool]*tmp$NC_COL
-  tmp$AC_PI <- df.amount$AAC[df.amount$coverage == "PI" & bool]*tmp$NC_PI
-  return(tmp)
-}
-
-
-EstimateGrowth <- function(Data.List, growth, time.frame = 0, df.main, lapply.Fun, exposure = exposure){
-  # Data.List is our list with one scenario. Exaple Data.List = glm$rd if we want to see how our refined data behaves
-  # growth is a list if FUNCTIONS that explains the growth for each Risk Class
-  # time.frame is vector/numeric measured in years for each year there are 4 quarters. Default value is prediction for one year
-  # df is the dataframe we want to append our new predictions (probably will always be autocar raw data)
-  
-  
-  
-  # get estimates
-  Data.List$Number$df <- GetEstimates(Data.List = Data.List, m = "Number")
-  Data.List$Amount$df <- GetEstimates(Data.List = Data.List, m = "Amount")
-  
-  
-  
-  
-  df.number <- Data.List$Number$df
-  df.amount <- Data.List$Amount$df
-  start.year <- max(as.numeric(df.main$Year))
-  
-  # this data frame includes what we want to loo
-  df.1 <- data.frame(Type = unique(df.main$Type))
-  df.2 <- data.frame(RiskClass = unique(df.main$RiskClass))
-  df.3 <- data.frame(Qtr = c(1,2,3,4))
-  df.4 <- data.frame(Autonomy = c("A0", "A1", "A2", "A3", "A4", "A5"))
-  
-  loop.df <- merge(df.1,df.2)
-  loop.df <- merge(loop.df, df.3)
-  loop.df <- merge(loop.df, df.4)
-  loop.df <- as.data.frame(loop.df)
-  
-  # append to Our data.Frame 
-  for( i in time.frame){
-    # This for loop counts time
-    # lapply much faster then a for loop
-    r <- lapply(X = 1:dim(loop.df)[1], 
-                FUN = loop.fun, i = i, 
-                df.main = df.main, 
-                loop.df = loop.df,
-                growth = growth, 
-                start.year = start.year,
-                df.amount = df.amount,
-                df.number = df.number,
-                exposure = exposure)
-    
-    names(df.main)
-    names(do.call(rbind,r))
-    df.main <-  rbind(df.main, do.call(rbind,r))
-    
-    
-  }
-  
-  
-  # View(df.main[df.main$RiskClass == "SML" & df.main$Type == "Personal", names(df.main) %in% c("Exposure", "Year")])
-  
-  # We Return a list with the information needed
-  ret <- list()
-  ret$prediction <- df.main
-  ret$Data.List <- Data.List
-  return(ret)
-  
-}
-
-
 findProportions <- function(df.main, years = NULL){
   
   df.main$prop <- 0
@@ -362,167 +130,6 @@ plot.func <- function(predict.df){
 }
 
 
-
-
-model <- function(time.frame, func.personal, func.commercial, param.personal, param.commercial,exp.growth.personal, exp.growth.commercial,
-                  safelife.prop.aut, freq.pct, loss.pct){
-  # time.frame i the time frame we are considering
-  # func.personal - differential function for personal
-  # func.commerfcial - differential function for commercial
-  # param.personal and param.commercial - paramteter for the differential function is a list of functions
-  # exp.growth.xxxx - for differential equation How much is carbia autonomous market growing (Exposre for whole of carbia)
-  # safelife.prop.aut - proportions that safelife wants
-  # freq.pct - frequency loss/gains for the autonomous levels for each coverage
-  # loss.pct - amount pct loss/gains for aut lvels for each coverage
-  
-  
-  
-  # General functions call
-  source("functions.R")
-  # GLM - parameters
-  
-  # Call the GLM.R script, estimates number and AAC for current automoblies. Also
-  source("GLM.R")
-  
-  
-  # Premiums for each autonomu class
-  source("autonomyClaimAmounts.R")
-  # estimates for A0 from the glm model
-  estimates.A0 <- A0initialParam(glm.list = glm, refine = "rd") 
-  claims.estimates <- autonomyPremium(estimates.A0 = estimates.A0, type = "same", time.frame = time.frame, start.year = 2019, lvls = lvls)
-  
-  # Proportions of Risk Classes within autonomy classes
-  source("RiskClassProp.R")
-  df.main <- autocar
-  prop <- riskClassProp(df.main, time.frame = time.frame, start.year = 2019, lvls = lvls)
-  
-  # Autonomy Proportions
-  source("autonomyProportions.R")
-  # initial value
-  
-  mark.share <- 0.34 # Given
-  
-  # Estimation for whole of Carbia
-  personal.exposure <- sum(df.main$Exposure[df.main$Year == 2018 & df.main$Qtr == 4 & df.main$Type == "Personal"])/mark.share
-  commercial.exposure <- sum(df.main$Exposure[df.main$Year == 2018 & df.main$Qtr == 4 & df.main$Type == "Commercial"])/mark.share
-  # create initial exposure for personal
-  
-  init.personal <- rep(x = 0, length = length(lvls))
-  names(init.personal) <- lvls
-  init.personal[1] <- personal.exposure
-  
-  autonomyChange <- list()
-  autonomyChange$Personal <- autonomyRateContinous(time.frame = time.frame, func = func.personal, param = param.personal, init = init.personal, exp.growth = exp.growth.personal)
-  #autonomyChange$Personal$plot
-  
-  # Commercial exposure
-  # initial vector has to have the right names
-  init.commercial <- rep(x = 0, length = length(lvls))
-  names(init.commercial) <- lvls
-  init.commercial[1] <- commercial.exposure
-  
-  autonomyChange$Commercial <-  autonomyRateContinous(time.frame = time.frame, func = func.commercial, param = param.commercial, init = init.commercial, exp.growth = exp.growth.commercial)
-  
-  
-  # Now we basically have everything, we can put it into one data frame
-  
-  # we need to make sure the data types are the same within every data frame when we join them
-  claims.estimates$Qtr <- as.numeric(claims.estimates$Qtr)
-  claims.estimates$RiskClass <- as.character(claims.estimates$RiskClass)
-  prop$Qtr <- as.numeric(prop$Qtr)
-  
-  predict.df <- full_join(claims.estimates, prop, by = c("Qtr","RiskClass", "Type", "Autonomy", "Year"))
-  # create the time column
-  predict.df$time <- predict.df$Year + 2.5*as.numeric(predict.df$Qtr)/10
-  
-  # Then add the autonomy exposure. Like the data frame is set up It has to be done with loop/lapply, unfortunately
-  # Start by initalizing columns
-  # t is what we will loop over, by = 0.25 because the 0.25 is quarter, we actually need to start at time 0.25 which is year 2019 Qtr 1
-  
-  # INITIALIZE THE COLUMN
-  predict.df$Exposure <- 0
-
-  for(type in unique(predict.df$Type)){
-    tmp <- autonomyChange[[type]]$out$time
-    # start at 2 because 1 is the inital exposure start point which we already know
-    for(i in 2:length(tmp)){
-      # adjust time to year and quarter
-      time <- tmp[i]
-
-      year <- 2018 + ceiling(time)
-      qtr <- (time * 4) %% 4
-      if(qtr == 0){ qtr <-  4}
-
-      for(l in lvls){
-        # multiply exposure with marketshare
-        tmp.exposure <- autonomyChange[[type]]$out[i, l]*safelife.prop.aut[[type]][safelife.prop.aut[[type]]$time == time, l]
-
-        predict.df$Exposure[predict.df$Qtr == qtr & predict.df$Year == year & predict.df$Type == type & predict.df$Autonomy == l] <- tmp.exposure
-
-
-      }
-    }
-  }
-  
-  
-  # Ajust frequency of claims and amount of claims
-  for(i in lvls){
-    predict.df$NC_BI[predict.df$Autonomy == i] <- predict.df$NC_BI[predict.df$Autonomy == i]*freq.pct[[i]]$BI
-    predict.df$NC_PD[predict.df$Autonomy == i] <- predict.df$NC_PD[predict.df$Autonomy == i]*freq.pct[[i]]$PD
-    predict.df$NC_COM[predict.df$Autonomy == i] <- predict.df$NC_COM[predict.df$Autonomy == i]*freq.pct[[i]]$COM
-    predict.df$NC_COL[predict.df$Autonomy == i] <- predict.df$NC_COL[predict.df$Autonomy == i]*freq.pct[[i]]$COL
-    predict.df$NC_PI[predict.df$Autonomy == i] <- predict.df$NC_PI[predict.df$Autonomy == i]*freq.pct[[i]]$PI
-    
-    predict.df$AAC_BI[predict.df$Autonomy == i] <- predict.df$AAC_BI[predict.df$Autonomy == i]*freq.pct[[i]]$BI
-    predict.df$AAC_PD[predict.df$Autonomy == i] <- predict.df$AAC_PD[predict.df$Autonomy == i]*freq.pct[[i]]$PD
-    predict.df$AAC_COM[predict.df$Autonomy == i] <- predict.df$AAC_COM[predict.df$Autonomy == i]*freq.pct[[i]]$COM
-    predict.df$AAC_COL[predict.df$Autonomy == i] <- predict.df$AAC_COL[predict.df$Autonomy == i]*freq.pct[[i]]$COL
-    predict.df$AAC_PI[predict.df$Autonomy == i] <- predict.df$AAC_PI[predict.df$Autonomy == i]*freq.pct[[i]]$PI
-  }
-  
-  
-  # We need to adjust the exposure by the prop column
-  predict.df$Exposure <- predict.df$Exposure*predict.df$prop
-  # Next we append our current data so we can plot some graphs representing the forecast
-  # names(predict.df)
-  
-  df.main <- autocar[, names(autocar) %in% c("Year", "Qtr", "RiskClass", "Type", "Exposure", "NC_BI",
-                                             "NC_PD", "NC_COM", "NC_COL", "NC_PI", "AAC_BI", "AAC_PD",
-                                             "AAC_COM", "AAC_COL", "AAC_PI")]
-  # Find the proportion
-  df.main <- findProportions(df.main = df.main)
-  
-  # We have to make sure the NC column is per exposure like the predict colum
-  df.main$NC_BI <- df.main$NC_BI/df.main$Exposure
-  df.main$NC_PD <- df.main$NC_PD/df.main$Exposure
-  df.main$NC_COM <- df.main$NC_COM/df.main$Exposure
-  df.main$NC_COL <- df.main$NC_COL/df.main$Exposure
-  df.main$NC_PI <- df.main$NC_PI/df.main$Exposure
-  
-  df.main$Autonomy <- "A0"
-  
-  # rearrange so they have the same data types
-  df.main$time <- df.main$Year + 2.5*as.numeric(df.main$Qtr)/10
-  df.main <- df.main[,names(predict.df)]
-  df.main$Qtr <- as.numeric(df.main$Qtr)
-  
-  
-  # Finally combine the data.frames
-  
-  predict.df <- rbind(df.main, predict.df)
-  
-  
-  
-  # return list
-  ret <- list()
-  ret$df <- predict.df
-  ret$autonomyChange <- autonomyChange
-  
-  return(ret)
-}
-
-
-
 freq.loss.tidy <- function(freq.pct, loss.pct){
   
   for(i in names(freq.pct)){
@@ -577,13 +184,7 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
                             carb.commercial.pct = carb.commercial.pct, 
                             carb.personal.pct = carb.personal.pct)
   
-  
-  # tmp <- exposure
-  # tmp$time <- exposure$Year + 2.5*exposure$Qtr/10
-  # tmp <- tmp[, names(tmp) %in% c("Exposure", "time")]
-  # tmp <- aggregate(. ~ time, data =tmp, FUN = sum)
-  # 
-  # ggplot(data = tmp) + geom_line(mapping = aes(x = time, y = Exposure))
+
   
   # Finally we add stuff
   predict.df <- as.data.frame(full_join(instances, prop, by = c("Qtr","RiskClass", "Type", "Autonomy", "Year")))
@@ -597,12 +198,6 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   # Then we multiply prop with exposure to adjust the Risk Class exposure
   
   predict.df$Exposure <- predict.df$Exposure*predict.df$prop
-  # tmp <- predict.df
-  # tmp$time <- tmp$Year + 2.5*tmp$Qtr/10
-  # tmp <- tmp[, names(tmp) %in% c("Exposure", "time")]
-  # tmp <- aggregate(. ~ time, data =tmp, FUN = sum)
-  # 
-  # ggplot(data = tmp) + geom_line(mapping = aes(x = time, y = Exposure))
   
   # Now we use the model to get the exposure, dive Risk Class into 3 columns and remove the original
   predict.df$VehicleSize <- ""
@@ -652,6 +247,9 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
     
   }
   
+  # Remove columns we don't need
+  predict.df <- predict.df[, !(names(predict.df) %in% c("carb.pct", "carbia_exposure", "safelife.pct"))]
+  
   
   # loss and frequency multpliers
   multipliers <- freq.loss.tidy(freq.pct = freq.pct, loss.pct = loss.pct)
@@ -684,41 +282,27 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   
   # A2 only has 3 Classes So we 
   # Next we need to aggregate A2
+
+  tmp <- predict.df[predict.df$Autonomy == "A2", ]
+  # remove then add back
+  predict.df <- predict.df[predict.df$Autonomy != "A2", ]
+  # Change  Risk Class
+  tmp$RiskClass[substr(tmp$RiskClass,1,1) == "S"] <- "Small"
+  tmp$RiskClass[substr(tmp$RiskClass,1,1) == "M"] <- "Medium"
+  tmp$RiskClass[substr(tmp$RiskClass,1,1) == "L"] <- "Large"
+
+  # tmp.1 includes proportions and Exposure along wit the keys, they sum when aggregated
+  tmp.1 <- tmp[, c("Year", "Autonomy", "Qtr", "Type", "time", "RiskClass", "Exposure", "prop")]
+  tmp.1 <- aggregate(. ~ Year + Autonomy + Qtr + Type + time + RiskClass, data = tmp.1, FUN = sum)
+  # tmp.2 includes the coverages which should be averaged
+  tmp.2 <- tmp[, !(names(tmp) %in% c("Exposure", "prop"))]
+  tmp.2 <- aggregate(. ~ Year + Autonomy + Qtr + Type + time + RiskClass, data = tmp.2, FUN = mean)
+
+  # join them
+  tmp <- full_join(x = tmp.1, y = tmp.2, by = c("Year", "Autonomy", "Qtr", "Type", "time", "RiskClass"))
   
-  # tmp <- predict.df[predict.df$Autonomy == "A2", ]
-  # # remove then add back
-  # predict.df <- predict.df[predict.df$Autonomy != "A2", ]
-  # # Change  Risk Class
-  # tmp$RiskClass[substr(tmp$RiskClass,1,1) == "S"] <- "Small"
-  # tmp$RiskClass[substr(tmp$RiskClass,1,1) == "M"] <- "Medium"
-  # tmp$RiskClass[substr(tmp$RiskClass,1,1) == "L"] <- "Large"
-  # 
-  # # take sum
-  # tmp <- aggregate(formula = . ~ Type + RiskClass + Qtr + Year + Autonomy, data = tmp, FUN = sum)
-  # # but we need to take mean for each Risk Class
-  # # then we need to divide we are assuming same every year
-  # tmp$NC_BI <- tmp$NC_BI/9
-  # tmp$NC_PD <- tmp$NC_PD/9
-  # tmp$NC_COM <- tmp$NC_COM/9
-  # tmp$NC_COL <- tmp$NC_COL/9
-  # tmp$NC_PI <- tmp$NC_PI/9
-  # 
-  # tmp$AC_BI <- tmp$AC_BI/9
-  # tmp$AC_PD <- tmp$AC_PD/9
-  # tmp$AC_COM <- tmp$AC_COM/9
-  # tmp$AC_COL <- tmp$AC_COL/9
-  # tmp$AC_PI <- tmp$AC_PI/9
-  # 
-  # tmp$AAC_BI <- tmp$AAC_BI/9
-  # tmp$AAC_PD <- tmp$AAC_PD/9
-  # tmp$AAC_COM <- tmp$AAC_COM/9
-  # tmp$AAC_COL <- tmp$AAC_COL/9
-  # tmp$AAC_PI <- tmp$AAC_PI/9
-  # 
-  # 
-  # # sum(tmp$prop[tmp$Type == "Personal" & tmp$Qtr == 1 & tmp$Year == 2019])
-  # predict.df <- rbind(predict.df, tmp)
-  
+  predict.df <- rbind(predict.df, tmp)
+
   # Rbind the historical data but first we need to make sure the columns are the same
 
   tmp <- autocar
@@ -741,12 +325,6 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   tmp$AAC_PI.pct <- 1
   
   
-  
-  
-  # We need to have the followign column to use rbind but these information is missing
-  tmp$carb.pct <- -99
-  tmp$carbia_exposure <- -99
-  tmp$safelife.pct <- -99
   
   tmp$time <- tmp$Year + 2.5*as.numeric(tmp$Qtr)/10
   tmp$Qtr <- as.numeric(tmp$Qtr)
@@ -803,11 +381,82 @@ exposure.tidy <- function( safelife.market.share, carbia.exposure, carb.commerci
 }
 
 
-history.tidy <- function(autocar){
+riskClassProp <- function(df.main, time.frame, start.year = 2019, lvls){
+  # df.main - The data.frame
+  # Exposure year what exposure year to use 
   
-
+  
+  # calculate the proportion for each year and qtr then fin the averages
+  # 27 Risk clasess 40 dates 
+  
+  tmp.prop <- list()
+  count <- 1
+  
+  # we want to make the rows od the data frames correspond to the same row, so we order the Risk Class
+  
+  for (i in unique(df.main$Year)){
+    for(j in unique(df.main$Qtr)){
+      
+      tmp <- df.main[df.main$Year == i & df.main$Qtr == j & df.main$Type == "Personal", ]
+      total.exposure <- sum(tmp$Exposure)
+      tmp.df <- data.frame(prop = tmp$Exposure/total.exposure, RiskClass = tmp$RiskClass, stringsAsFactors = F)
+      
+      tmp.prop[[count]] <- tmp.df[order(tmp.df$RiskClass), "prop" ,drop = F]
+      
+      count <- count + 1
+    }
+  }
+  
+  # take average
+  tmp.prop <- do.call(what = cbind, args = tmp.prop)
+  prop.personal <- rowSums(x = tmp.prop)/dim(tmp.prop)[2]
   
   
+  tmp.prop <- list()
+  count <- 1
+  
+  # we want to make the rows od the data frames correspond to the same row, so we order the Risk Class
+  
+  for (i in unique(df.main$Year)){
+    for(j in unique(df.main$Qtr)){
+      
+      tmp <- df.main[df.main$Year == i & df.main$Qtr == j & df.main$Type == "Commercial", ]
+      total.exposure <- sum(tmp$Exposure)
+      tmp.df <- data.frame(prop = tmp$Exposure/total.exposure, RiskClass = tmp$RiskClass, stringsAsFactors = F)
+      
+      tmp.prop[[count]] <- tmp.df[order(tmp.df$RiskClass), "prop" ,drop = F]
+      
+      count <- count + 1
+    }
+  }
+  
+  # take average
+  tmp.prop <- do.call(what = cbind, args = tmp.prop)
+  prop.commercial <- rowSums(x = tmp.prop)/dim(tmp.prop)[2]
+  
+  prop <- data.frame(RiskClass = sort(unique(df.main$RiskClass)), Personal = prop.personal, Commercial = prop.commercial)
+  
+  # instead of two columns we want to have a Type Column, an prop colum
+  prop <- melt(prop, id = "RiskClass")
+  names(prop)[names(prop) == "variable"] <- "Type"
+  names(prop)[names(prop) == "value"] <- "prop"
+  
+  
+  # Then we need to merge year and quarter
+  # new years
+  tmp.df <- data.frame(Year = time.frame + start.year)
+  prop <- as.data.frame(merge(prop, tmp.df))
+  
+  tmp.df <- data.frame(Qtr = sort(unique(df.main$Qtr)))
+  prop <- as.data.frame(merge(prop, tmp.df))
+  
+  tmp.df <- data.frame(Autonomy = lvls)
+  prop <- as.data.frame(merge(prop, tmp.df))
+  
+  
+  return(prop)
   
 }
+
+
 

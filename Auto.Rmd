@@ -41,7 +41,7 @@ source("GLM.R")
 Insert initial variables
 
 ```{r, warning=FALSE}
-time.frame <- 0:11
+time.frame <- 0:20
 start.year <- 2019
 t <- seq(min(time.frame), max(time.frame), by = 0.25)
 ```
@@ -51,9 +51,9 @@ t <- seq(min(time.frame), max(time.frame), by = 0.25)
 ## Safelife marketshare
 
 ```{r, warning=FALSE}
-A0 <- 0.34 + 0.005*t
-A1 <- exp(-t*0.2)*0.6 +0.4
-A2<- exp(-t*0.19)*0.6 +0.4
+A0 <- 0.34 + 0.00*t
+A1 <- 0.34 #exp(-t*0.2)*0.6 +0.4
+A2<- 0.34 #exp(-t*0.19)*0.6 +0.4
 
 safelife.market.share <- data.frame(time = t,
                                     A0 = A0,
@@ -169,8 +169,8 @@ personal.exposure <- sum(autocar$Exposure[autocar$Year == 2018 & autocar$Qtr == 
 commercial.exposure <- sum(autocar$Exposure[autocar$Year == 2018 & autocar$Qtr == 4 & autocar$Type == "Commercial"])/mark.share.c 
 
 carbia.exposure <- data.frame(time = t,
-                              Personal = personal.exposure*(1+t*0.005),
-                              Commercial = commercial.exposure*(1+0.025)^t)
+                              Personal = personal.exposure*(1+t*0.00),
+                              Commercial = commercial.exposure*(1+0.0)^t)
 
 
 m.carbia.exposure <- melt(data = carbia.exposure, id.vars = c("time"))
@@ -203,18 +203,18 @@ freq.pct$A0 <- data.frame(time = t,
                           NC_PI.pct = rep(1, length(t)))
 
 freq.pct$A1 <- data.frame(time = t, 
-                          NC_BI.pct = 0.05*(1-carb.personal.pct$A0) + 0.5*carb.personal.pct$A0, 
-                          NC_PD.pct = 0.05*(1-carb.personal.pct$A0) + 0.5*carb.personal.pct$A0,
+                          NC_BI.pct = 0.05*(1-carb.personal.pct$A0) + 0.2*carb.personal.pct$A0, 
+                          NC_PD.pct = 0.05*(1-carb.personal.pct$A0) + 0.2*carb.personal.pct$A0,
                           NC_COM.pct = rep(1, length(t)), 
-                          NC_COL.pct = 0.05*(1-carb.personal.pct$A0) + 0.5*carb.personal.pct$A0,
-                          NC_PI.pct = 0.05*(1-carb.personal.pct$A0) + 0.5*carb.personal.pct$A0)
+                          NC_COL.pct = 0.05*(1-carb.personal.pct$A0) + 0.2*carb.personal.pct$A0,
+                          NC_PI.pct = 0.05*(1-carb.personal.pct$A0) + 0.2*carb.personal.pct$A0)
 
 freq.pct$A2 <- data.frame(time = t, 
-                          NC_BI.pct = 0.025*(1-carb.personal.pct$A0) + 0.25*carb.personal.pct$A0, 
-                          NC_PD.pct = 0.025*(1-carb.personal.pct$A0) + 0.25*carb.personal.pct$A0, 
+                          NC_BI.pct = 0.025*(1-carb.personal.pct$A0) + 0.1*carb.personal.pct$A0, 
+                          NC_PD.pct = 0.025*(1-carb.personal.pct$A0) + 0.1*carb.personal.pct$A0, 
                           NC_COM.pct = rep(1, length(t)), 
-                          NC_COL.pct = 0.025*(1-carb.personal.pct$A0) + 0.25*carb.personal.pct$A0, 
-                          NC_PI.pct = 0.025*(1-carb.personal.pct$A0) + 0.25*carb.personal.pct$A0)
+                          NC_COL.pct = 0.025*(1-carb.personal.pct$A0) + 0.1*carb.personal.pct$A0, 
+                          NC_PI.pct = 0.025*(1-carb.personal.pct$A0) + 0.1*carb.personal.pct$A0)
 
 loss.pct <- list()
 loss.pct$A0 <- data.frame(time = t, 
@@ -246,7 +246,7 @@ loss.pct$A2 <- data.frame(time = t,
 
 ```{r, warning=FALSE}
 
-time.frame <- 0:10
+time.frame <- time.frame[1:(length(time.frame)-1)]
 
 predict.df <- model.2(time.frame = time.frame, autocar = autocar, glm.list = glm$rd, safelife.market.share = safelife.market.share, carbia.exposure = carbia.exposure, carb.commercial.pct = carb.commercial.pct, carb.personal.pct = carb.personal.pct, freq.pct = freq.pct, loss.pct = loss.pct)
 # check if around ~25%
@@ -306,11 +306,11 @@ predict.df.zero <- predict.df[predict.df$Exposure == 0, ]
   
   # Plot Claims evolution personal
   tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI", "Exposure")]
-  tmp$NC_BI <- tmp$NC_BI/tmp$Exposure
-  tmp$NC_PD <- tmp$NC_PD/tmp$Exposure
-  tmp$NC_COM <- tmp$NC_COM/tmp$Exposure
-  tmp$NC_COL <- tmp$NC_COL/tmp$Exposure
-  tmp$NC_PI <- tmp$NC_PI/tmp$Exposure
+  # tmp$NC_BI <- tmp$NC_BI/tmp$Exposure
+  # tmp$NC_PD <- tmp$NC_PD/tmp$Exposure
+  # tmp$NC_COM <- tmp$NC_COM/tmp$Exposure
+  # tmp$NC_COL <- tmp$NC_COL/tmp$Exposure
+  # tmp$NC_PI <- tmp$NC_PI/tmp$Exposure
   
   tmp <- tmp[, !(names(tmp) %in% "Exposure")]
   

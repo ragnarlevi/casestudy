@@ -187,7 +187,7 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
 
   
   # Finally we add stuff
-  predict.df <- as.data.frame(full_join(instances, prop, by = c("Qtr","RiskClass", "Type", "Autonomy", "Year")))
+  predict.df <- full_join(instances, prop, by = c("Qtr","RiskClass", "Type", "Autonomy", "Year"))
 
   predict.df <- left_join(x = predict.df, y = exposure,  by = c("Qtr", "Type", "Autonomy", "Year"))
   # add time variable
@@ -237,13 +237,6 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
     predict.df$AAC_COL <- exp(predict(object = glm.list$Amount$Model$COL, newdata = predict.df))
     predict.df$AAC_PI <- exp(predict(object = glm.list$Amount$Model$PI, newdata = predict.df))
     
-    # Then multiply to find the amount
-    
-    predict.df$AC_BI <- predict.df$NC_BI*predict.df$AAC_BI
-    predict.df$AC_PD <- predict.df$NC_PD*predict.df$AAC_PD
-    predict.df$AC_COM <- predict.df$NC_COM*predict.df$AAC_COM
-    predict.df$AC_COL <- predict.df$NC_COL*predict.df$AAC_COL
-    predict.df$AC_PI <- predict.df$NC_PI*predict.df$AAC_PI
     
   }
   
@@ -269,14 +262,16 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   predict.df$AAC_COL <- predict.df$AAC_COL*predict.df$AAC_COL.pct
   predict.df$AAC_PI <- predict.df$AAC_PI*predict.df$AAC_PI.pct
   
-  predict.df$AC_BI <- predict.df$AC_BI*predict.df$AAC_BI.pct
-  predict.df$AC_PD <- predict.df$AC_PD*predict.df$AAC_PD.pct
-  predict.df$AC_COM <- predict.df$AC_COM*predict.df$AAC_COM.pct
-  predict.df$AC_COL <- predict.df$AC_COL*predict.df$AAC_COL.pct
-  predict.df$AC_PI <- predict.df$AC_PI*predict.df$AAC_PI.pct
+  # Then multiply to find the amount
+  
+  predict.df$AC_BI <- predict.df$NC_BI*predict.df$AAC_BI
+  predict.df$AC_PD <- predict.df$NC_PD*predict.df$AAC_PD
+  predict.df$AC_COM <- predict.df$NC_COM*predict.df$AAC_COM
+  predict.df$AC_COL <- predict.df$NC_COL*predict.df$AAC_COL
+  predict.df$AC_PI <- predict.df$NC_PI*predict.df$AAC_PI
   
   
-  predict.df$RiskClass <- paste(predict.df$VehicleSize, predict.df$DriverAge, predict.df$DriverRisk, sep = "")
+  predict.df$RiskClass <- paste(predict.df$VehicleSize, predict.df$DriverAg, predict.df$DriverRisk, sep = "")
   predict.df <- predict.df[, !(names(predict.df) %in% c("VehicleSize", "DriverAge", "DriverRisk"))]
   
   
@@ -302,7 +297,14 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   tmp <- full_join(x = tmp.1, y = tmp.2, by = c("Year", "Autonomy", "Qtr", "Type", "time", "RiskClass"))
   
   predict.df <- rbind(predict.df, tmp)
-
+  
+  # Add new coverages
+  
+  # Cyber Risk
+  
+  n_personal <- mean(predict.df$NC_COM[predict.df$Type == "Personal" & predict.df$Autonomy == "A2" & predict.df$Year == 2010 & predict.df$Qtr == 3])
+  ac_personal <- mean(predict.df$AAC_COM[predict.df$Type == "Personal" & predict.df$Autonomy == "A2" & predict.df$Year == 2010 & predict.df$Qtr == 3])
+  
   # Rbind the historical data but first we need to make sure the columns are the same
 
   tmp <- autocar

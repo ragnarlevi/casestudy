@@ -227,15 +227,15 @@ loss.pct$A0 <- data.frame(time = t,
 loss.pct$A1 <- data.frame(time = t, 
                           AAC_BI.pct = rep(1, length(t)), 
                           AAC_PD.pct = rep(1, length(t)), 
-                          AAC_COM.pct = rep(1.3, length(t)), 
-                          AAC_COL.pct = rep(1.3, length(t)), 
+                          AAC_COM.pct = rep(1, length(t)), 
+                          AAC_COL.pct = rep(1, length(t)), 
                           AAC_PI.pct = rep(1, length(t)))
 
 loss.pct$A2 <- data.frame(time = t, 
                           AAC_BI.pct = rep(1, length(t)), 
                           AAC_PD.pct = rep(1, length(t)), 
-                          AAC_COM.pct = rep(1.5, length(t)), 
-                          AAC_COL.pct = rep(1.5, length(t)), 
+                          AAC_COM.pct = rep(1, length(t)), 
+                          AAC_COL.pct = rep(1, length(t)), 
                           AAC_PI.pct = rep(1, length(t)))
 
 ```
@@ -248,7 +248,7 @@ loss.pct$A2 <- data.frame(time = t,
 
 time.frame <- time.frame[1:(length(time.frame)-1)]
 
-predict.df <- model.2(time.frame = time.frame, autocar = autocar, glm.list = glm$rd, safelife.market.share = safelife.market.share, carbia.exposure = carbia.exposure, carb.commercial.pct = carb.commercial.pct, carb.personal.pct = carb.personal.pct, freq.pct = freq.pct, loss.pct = loss.pct)
+predict.df <- model.2(time.frame = time.frame, autocar = autocar, glm.list = glm$rd, safelife.market.share = safelife.market.share, carbia.exposure = carbia.exposure, carb.commercial.pct = carb.commercial.pct, carb.personal.pct = carb.personal.pct, freq.pct = freq.pct, loss.pct = loss.pct, MR.fac = 0.0255, IS.fac = 0.0127, CR.fac = 0.06)
 # check if around ~25%
 max(predict.df$time)
 sum(predict.df$Exposure[predict.df$Autonomy != "A0" & predict.df$time == 2030])/sum(predict.df$Exposure[predict.df$time == 2030])
@@ -306,11 +306,7 @@ predict.df.zero <- predict.df[predict.df$Exposure == 0, ]
   
   # Plot Claims evolution personal
   tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI", "Exposure")]
-  # tmp$NC_BI <- tmp$NC_BI/tmp$Exposure
-  # tmp$NC_PD <- tmp$NC_PD/tmp$Exposure
-  # tmp$NC_COM <- tmp$NC_COM/tmp$Exposure
-  # tmp$NC_COL <- tmp$NC_COL/tmp$Exposure
-  # tmp$NC_PI <- tmp$NC_PI/tmp$Exposure
+
   
   tmp <- tmp[, !(names(tmp) %in% "Exposure")]
   
@@ -352,21 +348,21 @@ predict.df.zero <- predict.df[predict.df$Exposure == 0, ]
   
   
   # Plot AC
-  tmp <- predict.df[, names(predict.df) %in% c("time", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI")]
+  tmp <- predict.df[, names(predict.df) %in% c("time", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI", "AC_IS", "AC_CR", "AC_MR")]
   tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
   tmp.melt <- melt(data = tmp, id = c("time"))
   
   ggplot(data = tmp.melt) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity") + ggtitle("Total claim amount")
   
   # Plot AC Personal
-  tmp <- predict.df[ predict.df$Type == "Personal", names(predict.df) %in% c("time", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI")]
+  tmp <- predict.df[ predict.df$Type == "Personal", names(predict.df) %in% c("time", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI", "AC_CR", "AC_MR", "AC_IS")]
   tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
   tmp.melt <- melt(data = tmp, id = c("time"))
   
   ggplot(data = tmp.melt) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity") + ggtitle("Total personal claim amount") 
   
   # Plot AC Commercial
-  tmp <- predict.df[ predict.df$Type == "Commercial", names(predict.df) %in% c("time", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI")]
+  tmp <- predict.df[ predict.df$Type == "Commercial", names(predict.df) %in% c("time", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI", "AC_CR", "AC_MR", "AC_IS")]
   tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
   tmp.melt <- melt(data = tmp, id = c("time"))
   

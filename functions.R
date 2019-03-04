@@ -152,7 +152,7 @@ freq.loss.tidy <- function(freq.pct, loss.pct){
 
 
 
-model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia.exposure, carb.commercial.pct, carb.personal.pct, freq.pct, loss.pct){
+model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia.exposure, carb.commercial.pct, carb.personal.pct, freq.pct, loss.pct, MR.fac = 1, IS.fac = 1, CR.fac = 1){
   # time frame
   # autocar - original data frae
   # glm.list <- the glm list
@@ -298,12 +298,45 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   
   predict.df <- rbind(predict.df, tmp)
   
+   
   # Add new coverages
+
+  # sum nc
+  total.coverage.sum.nc <- mean(rowSums(autocar[, c("NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")])/autocar$Exposure)
+  #
+  # Malfunction Risk, make sure A0 is just 0 or NA
+  predict.df$NC_MR <- 0
+  predict.df$NC_MR[predict.df$Autonomy != "A0"] <- total.coverage.sum.nc*rowMeans(predict.df[predict.df$Autonomy != "A0", c("NC_BI.pct", "NC_PD.pct", "NC_COM.pct", "NC_COL.pct", "NC_PI.pct")])
+  lm.BI <- lm(formula = AAC_BI ~ time, data = predict.df)
+  lm.PD <- lm(formula = AAC_PD ~ time, data = predict.df)
+  lm.COM <- lm(formula = AAC_COM ~ time, data = predict.df)
+  lm.COL <- lm(formula = AAC_COL ~ time, data = predict.df)
+  lm.PI <- lm(formula = AAC_PI ~ time, data = predict.df)
+  # linear non seasonal AAC
+  x.BI <- predict(object = lm.BI, predict.df)
+  x.PD <- predict(object = lm.PD, predict.df)
+  x.COM <- predict(object = lm.COM, predict.df)
+  x.COL <- predict(object = lm.COL, predict.df)
+  x.PI <- predict(object = lm.PI, predict.df)
   
+  x <- rowSums( cbind(x.BI, x.PD, x.COM, x.COL, x.PI))
+  
+  
+  predict.df$AAC_MR <- x
+  predict.df$AC_MR <- predict.df$AAC_MR*predict.df$NC_MR*predict.df$Exposure*MR.fac*predict.df$NC_BI.pct
+
+  # INFRASTRUCTURE rIS
+  predict.df$NC_IS <- 0
+  predict.df$NC_IS[predict.df$Autonomy != "A0"] <- total.coverage.sum.nc*rowMeans(predict.df[predict.df$Autonomy != "A0", c("NC_BI.pct", "NC_PD.pct", "NC_COM.pct", "NC_COL.pct", "NC_PI.pct")])
+  predict.df$AAC_IS <- x
+  predict.df$AC_IS <- predict.df$AAC_IS*predict.df$NC_IS*predict.df$Exposure*IS.fac
+
   # Cyber Risk
-  
-  n_personal <- mean(predict.df$NC_COM[predict.df$Type == "Personal" & predict.df$Autonomy == "A2" & predict.df$Year == 2010 & predict.df$Qtr == 3])
-  ac_personal <- mean(predict.df$AAC_COM[predict.df$Type == "Personal" & predict.df$Autonomy == "A2" & predict.df$Year == 2010 & predict.df$Qtr == 3])
+  predict.df$NC_CR <- 0
+  predict.df$NC_CR[predict.df$Autonomy != "A0"] <- total.coverage.sum.nc*rowMeans(predict.df[predict.df$Autonomy != "A0", c("NC_BI.pct", "NC_PD.pct", "NC_COM.pct", "NC_COL.pct", "NC_PI.pct")])
+  predict.df$AAC_CR <- x
+  predict.df$AC_CR <- predict.df$AAC_CR*predict.df$NC_CR*predict.df$Exposure*CR.fac
+
   
   # Rbind the historical data but first we need to make sure the columns are the same
 
@@ -326,6 +359,17 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   tmp$AAC_COL.pct <- 1
   tmp$AAC_PI.pct <- 1
   
+  tmp$AC_MR <- 0
+  tmp$AAC_MR <- 0
+  tmp$NC_MR <- 0
+
+  tmp$AC_IS <- 0
+  tmp$AAC_IS <- 0
+  tmp$NC_IS <- 0
+  
+  tmp$NC_CR <- 0
+  tmp$AAC_CR <- 0
+  tmp$AC_CR <- 0
   
   
   tmp$time <- tmp$Year + 2.5*as.numeric(tmp$Qtr)/10

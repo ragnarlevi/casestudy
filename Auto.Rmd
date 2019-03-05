@@ -41,7 +41,7 @@ source("GLM.R")
 Insert initial variables
 
 ```{r, warning=FALSE}
-time.frame <- 0:20
+time.frame <- 0:11
 start.year <- 2019
 t <- seq(min(time.frame), max(time.frame), by = 0.25)
 ```

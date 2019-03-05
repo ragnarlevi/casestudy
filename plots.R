@@ -1,9 +1,5 @@
 
 
-<<<<<<< HEAD
-## plots
-```{r}
-
 plots <- list()
 
 # Change the default style of ggplot (plot titles are now centered by default)
@@ -147,18 +143,29 @@ tmp <- predict.df[, c("time", "RiskClass", "prop", "Type", "Autonomy")]
 
 ggplot(data = tmp)+ geom_line(mapping = aes(x = time, y = prop, color = RiskClass)) + facet_wrap(. ~ Type + Autonomy, scales = "free")
 
-```
-=======
+
+
+
+# Exposure PLot --------------------
 tmp <- predict.df[, c("time", "Exposure", "Type", "Autonomy")]
 
 tmp <- aggregate(. ~ time + Type + Autonomy, data = tmp, FUN = sum)
-tmp$Autonomy <- factor(tmp$Autonomy, levels = c("A0", "A1", "A"), ordered = T)
+tmp$Autonomy <- factor(tmp$Autonomy, levels = c("A0", "A1", "A2"), ordered = T)
 tmp <- tmp[order(tmp$Autonomy, decreasing = T),]
 
-ggplot(tmp) + geom_bar(mapping = aes(x = time, y = Exposure, fill = Autonomy, group = Type) , 
-                       stat = "identity", 
-                       position = "stack", 
-                       width = 0.2) +
+tmp.1 <- tmp[tmp$time <= 2019,]
+tmp.2 <- tmp[tmp$time > 2019,]
+
+ggplot() + geom_bar(data = tmp.1, mapping = aes(x = time, y = Exposure, fill = Autonomy, group = Type) , 
+                    stat = "identity", 
+                    position = "stack", 
+                    width = 0.2,
+                    alpha = 1) +
+  geom_bar(data = tmp.2, mapping = aes(x = time, y = Exposure, fill = Autonomy, group = Type) , 
+           stat = "identity", 
+           position = "stack", 
+           width = 0.2,
+           alpha = 1) +
   facet_wrap(. ~ Type) + 
   scale_fill_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8")) + 
   theme_bw(base_size = 20) + 
@@ -171,4 +178,53 @@ ggplot(tmp) + geom_bar(mapping = aes(x = time, y = Exposure, fill = Autonomy, gr
                      name = "Time")
 
 
->>>>>>> f723414b327c182864543cead7518ca54488cc9b
+# Descriptive statistics -----
+
+# Exposure
+tmp <- predict.df[predict.df$time<= 2019, c("time", "Exposure", "Type")]
+tmp <- aggregate(. ~ time + Type, data = tmp, FUN = sum)
+
+ggplot() + geom_line(data = tmp, mapping = aes(x = time, y = Exposure , color = Type), size = 2) + 
+  theme_bw(base_size = 19) +
+  scale_y_continuous(expand = c(0,0), 
+                     name = "Exposure in thousands", 
+                     breaks = c(0, 100000, 200000, 300000, 400000, 500000),
+                     labels = c("0", "100", "200", "300", "400", "500"),
+                     limits = c(0, 500000)) +
+  scale_x_continuous(expand = c(0,0), 
+                     name = "Time",
+                     breaks = c(2010, 2012, 2014, 2016, 2018),
+                     labels = c("2010", "2012", "2014", "2016", "2018"),
+                     limit = c(2009,2019)) +
+  scale_color_manual(values = c("Commercial" = "#004F71", "Personal" =  "#298FC2")) +
+  ggtitle("Exposure growth for Safelife")
+
+  
+# AC per coverage
+
+tmp <- predict.df[predict.df$time<= 2019, c("time", "Type", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV")]
+
+tmp <- aggregate(. ~ time + Type, data = tmp, FUN = sum)
+tmp.melt <- melt(tmp, id.vars = c("time", "Type"))
+
+ggplot() + geom_bar(data = tmp.melt, 
+                    mapping = aes(x = time, y = value, fill = variable),
+                    stat = "identity", 
+                    position = "stack",
+                    width = 0.19) +
+  theme_bw(base_size = 17) +
+  scale_y_continuous(expand = c(0,0), 
+                     name = "Severity in billions", 
+                     breaks = c(0, 0.3, 0.6, 0.9, 1.2)*10^(9),
+                     labels = c("0", "30", "60", "90", "120"),
+                     limits = c(0, 1200000000)) +
+  scale_x_continuous(expand = c(0,0), 
+                     name = "Time",
+                     breaks = c(2010, 2012, 2014, 2016, 2018),
+                     labels = c("2010", "2012", "2014", "2016", "2018"),
+                     limit = c(2009,2019))+
+  ggtitle("Severity with present value factor of 2019") +
+  facet_wrap(. ~ Type)
+  
+
+

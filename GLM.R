@@ -258,6 +258,12 @@ glm$rd$Amount$Model$PI <- tmp
 remove(tmp, tmp_2)
 
 
+
+
+
+
+
+
 # Adjust COM ----
 # Because we basically lowerd the amount and number of the COM coverage we need to adjust the intercept because in the next years we can have another natural disaster
 
@@ -278,12 +284,27 @@ glm$rd$Number$Model$COM$coefficients[names(glm$rd$Amount$Model$COM$coefficients)
 
 remove(ol, rd)
 
-# Finally get the estimates for each Risk Class, type, qtr etc..
-# get estimates
-# for(i in 1:length(glm)){
-#   glm[[i]]$Number$df <- GetEstimates(Data.List = glm[[i]], m = "Number")
-#   glm[[i]]$Amount$df <- GetEstimates(Data.List = glm[[i]], m = "Amount")
-#     
-# }
+
+# change time slope (interest to the average)
+bi_i <- glm$rd$Amount$Model$BI$coefficients[names(glm$rd$Amount$Model$BI$coefficients) == "time"]
+pd_i <- glm$rd$Amount$Model$PD$coefficients[names(glm$rd$Amount$Model$PD$coefficients) == "time"]
+com_i <- glm$rd$Amount$Model$COM$coefficients[names(glm$rd$Amount$Model$COM$coefficients) == "time"]
+col_i <- glm$rd$Amount$Model$COL$coefficients[names(glm$rd$Amount$Model$COL$coefficients) == "time"]
+pi_i <- glm$rd$Amount$Model$PI$coefficients[names(glm$rd$Amount$Model$PI$coefficients) == "time"]
+
+mean_i <- mean(c(bi_i,pd_i,com_i,col_i,pi_i))
+
+glm$rd$Amount$Model$BI$coefficients[names(glm$rd$Amount$Model$BI$coefficients) == "time"] <- mean_i
+glm$rd$Amount$Model$PD$coefficients[names(glm$rd$Amount$Model$PD$coefficients) == "time"] <- mean_i
+glm$rd$Amount$Model$COM$coefficients[names(glm$rd$Amount$Model$COM$coefficients) == "time"] <- mean_i
+glm$rd$Amount$Model$COL$coefficients[names(glm$rd$Amount$Model$COL$coefficients) == "time"] <- mean_i
+glm$rd$Amount$Model$PI$coefficients[names(glm$rd$Amount$Model$PI$coefficients) == "time"] <- mean_i
+
+# we also need to fix the intercept
+glm$rd$Amount$Model$BI$coefficients[names(glm$rd$Amount$Model$BI$coefficients) == "(Intercept)"] <- glm$rd$Amount$Model$BI$coefficients[names(glm$rd$Amount$Model$BI$coefficients) == "(Intercept)"] + (bi_i-mean_i)*2009
+glm$rd$Amount$Model$PD$coefficients[names(glm$rd$Amount$Model$PD$coefficients) == "(Intercept)"] <- glm$rd$Amount$Model$PD$coefficients[names(glm$rd$Amount$Model$PD$coefficients) == "(Intercept)"] + (pd_i-mean_i)*2009
+glm$rd$Amount$Model$COM$coefficients[names(glm$rd$Amount$Model$COM$coefficients) == "(Intercept)"] <- glm$rd$Amount$Model$COM$coefficients[names(glm$rd$Amount$Model$COM$coefficients) == "(Intercept)"] + (com_i-mean_i)*2020
+glm$rd$Amount$Model$COL$coefficients[names(glm$rd$Amount$Model$COL$coefficients) == "(Intercept)"] <- glm$rd$Amount$Model$COL$coefficients[names(glm$rd$Amount$Model$COL$coefficients) == "(Intercept)"] + (col_i-mean_i)*2009
+glm$rd$Amount$Model$PI$coefficients[names(glm$rd$Amount$Model$PI$coefficients) == "(Intercept)"] <-  glm$rd$Amount$Model$PI$coefficients[names(glm$rd$Amount$Model$PI$coefficients) == "(Intercept)"] + (pi_i-mean_i)*2009
 
 

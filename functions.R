@@ -138,7 +138,7 @@ freq.loss.tidy <- function(freq.pct, loss.pct){
   }
   
   
-  tmp <- full_join(do.call(what = rbind, args = freq.pct), do.call(what = rbind, args = loss.pct), by = c("time", "Autonomy"))
+  tmp <- inner_join(do.call(what = rbind, args = freq.pct), do.call(what = rbind, args = loss.pct), by = c("time", "Autonomy"))
   
   tmp$Year <- 2018 + ceiling(tmp$time)
   tmp$Qtr <- (tmp$time * 4) %% 4
@@ -152,7 +152,7 @@ freq.loss.tidy <- function(freq.pct, loss.pct){
 
 
 
-model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia.exposure, carb.commercial.pct, carb.personal.pct, freq.pct, loss.pct, MR.fac = 1, IS.fac = 1, CR.fac = 1){
+model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia.exposure, carb.commercial.pct, carb.personal.pct, freq.pct, loss.pct, MR.fac , IS.fac , CR.fac, interest ){
   # time frame
   # autocar - original data frae
   # glm.list <- the glm list
@@ -174,7 +174,7 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   
   
   # calculate proportions
-  df.main <-  autocar
+  # df.main <-  autocar
   
   prop <- riskClassProp(df.main = autocar, time.frame = time.frame, start.year = 2019, lvls = lvls)
 
@@ -187,7 +187,7 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
 
   
   # Finally we add stuff
-  predict.df <- full_join(instances, prop, by = c("Qtr","RiskClass", "Type", "Autonomy", "Year"))
+  predict.df <- inner_join(instances, prop, by = c("Qtr","RiskClass", "Type", "Autonomy", "Year"))
 
   predict.df <- left_join(x = predict.df, y = exposure,  by = c("Qtr", "Type", "Autonomy", "Year"))
   # add time variable
@@ -221,7 +221,7 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   
 
   
-  for(i in lvls){
+ # for(i in lvls){
     # Then we predict
     # NC
     predict.df$NC_BI <- exp(predict(object = glm.list$Number$Model$BI, newdata = predict.df))
@@ -238,7 +238,7 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
     predict.df$AAC_PI <- exp(predict(object = glm.list$Amount$Model$PI, newdata = predict.df))
     
     
-  }
+  #}
   
   # Remove columns we don't need
   predict.df <- predict.df[, !(names(predict.df) %in% c("carb.pct", "carbia_exposure", "safelife.pct"))]
@@ -294,7 +294,7 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   tmp.2 <- aggregate(. ~ Year + Autonomy + Qtr + Type + time + RiskClass, data = tmp.2, FUN = mean)
 
   # join them
-  tmp <- full_join(x = tmp.1, y = tmp.2, by = c("Year", "Autonomy", "Qtr", "Type", "time", "RiskClass"))
+  tmp <- inner_join(x = tmp.1, y = tmp.2, by = c("Year", "Autonomy", "Qtr", "Type", "time", "RiskClass"))
   
   predict.df <- rbind(predict.df, tmp)
   
@@ -381,6 +381,32 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   # bind them
   predict.df <- rbind(predict.df, tmp)
   
+  # Finally, we make present value factor and PV AAC and PV AC
+  today <- 2019 # today is 2019
+  
+  predict.df$pv_factor <- exp((predict.df$time-2019)*interest)
+  
+  predict.df$AC_BI_PV <- predict.df$AC_BI/predict.df$pv_factor
+  predict.df$AC_PD_PV <- predict.df$AC_PD/predict.df$pv_factor
+  predict.df$AC_COM_PV <- predict.df$AC_COM/predict.df$pv_factor
+  predict.df$AC_COL_PV <- predict.df$AC_COL/predict.df$pv_factor
+  predict.df$AC_PI_PV <- predict.df$AC_PI/predict.df$pv_factor
+  predict.df$AC_MR_PV <- predict.df$AC_MR/predict.df$pv_factor
+  predict.df$AC_CR_PV <- predict.df$AC_CR/predict.df$pv_factor
+  predict.df$AC_IS_PV <- predict.df$AC_IS/predict.df$pv_factor
+  
+  predict.df$AAC_BI_PV <- predict.df$AAC_BI/predict.df$pv_factor
+  predict.df$AAC_PD_PV <- predict.df$AAC_PD/predict.df$pv_factor
+  predict.df$AAC_COM_PV <- predict.df$AAC_COM/predict.df$pv_factor
+  predict.df$AAC_COL_PV <- predict.df$AAC_COL/predict.df$pv_factor
+  predict.df$AAC_PI_PV <- predict.df$AAC_PI/predict.df$pv_factor
+  predict.df$AAC_MR_PV <- predict.df$AAC_MR/predict.df$pv_factor
+  predict.df$AAC_CR_PV <- predict.df$AAC_CR/predict.df$pv_factor
+  predict.df$AAC_IS_PV <- predict.df$AAC_IS/predict.df$pv_factor
+  
+  
+  
+  
   return(predict.df)
   
 }
@@ -409,8 +435,8 @@ exposure.tidy <- function( safelife.market.share, carbia.exposure, carb.commerci
   # now we make one large 
   
   exposure <- as.data.frame(rbind(carb.commercial.pct, carb.personal.pct))
-  exposure <- as.data.frame(full_join(x = exposure, y = carbia.exposure, by = c("Type", "time")))
-  exposure <- as.data.frame(full_join(x = exposure, y = safelife.market.share, by = c("Autonomy", "time")))
+  exposure <- as.data.frame(inner_join(x = exposure, y = carbia.exposure, by = c("Type", "time")))
+  exposure <- as.data.frame(inner_join(x = exposure, y = safelife.market.share, by = c("Autonomy", "time")))
   
   # then we multply the carb.pct with carbia eposure to get the "correct" carbia eposire
   

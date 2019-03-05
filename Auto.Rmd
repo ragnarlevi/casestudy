@@ -41,7 +41,7 @@ source("GLM.R")
 Insert initial variables
 
 ```{r, warning=FALSE}
-time.frame <- 0:20
+time.frame <- 0:11
 start.year <- 2019
 t <- seq(min(time.frame), max(time.frame), by = 0.25)
 ```
@@ -85,10 +85,10 @@ ggplot(data = m.safe) + geom_line(mapping = aes(x = time, y = value, color = var
 
 A1 <- exp(0.01*t)-1
 A2 <- function(t){
-  if(t<3){
+  if(t<4){
     0
   }else{
-    0.0009*(t-3)^2#exp(0.015*(t-3))-1
+    0.0009*(t-4)^2 #exp(0.015*(t-3))-1
   }
 }
 A2 <- Vectorize(FUN = A2, vectorize.args = "t")
@@ -125,10 +125,10 @@ ggplot(data = m.carb) + geom_line(mapping = aes(x = time, y = value, color = var
 ```{r, warning=FALSE}
 A1 <- exp(0.012*t)-1
 A2 <- function(t){
-  if(t<3){
+  if(t<4){
     0
   }else{
-    0.0019*(t-3)^2#exp(0.015*(t-3))-1
+    0.0019*(t-4)^2 #exp(0.015*(t-3))-1
   }
 }
 A2 <- Vectorize(FUN = A2, vectorize.args = "t")
@@ -171,6 +171,7 @@ commercial.exposure <- sum(autocar$Exposure[autocar$Year == 2018 & autocar$Qtr =
 carbia.exposure <- data.frame(time = t,
                               Personal = personal.exposure*(1+t*0.005),
                               Commercial = commercial.exposure*(1+0.025)^t)
+
 
 
 m.carbia.exposure <- melt(data = carbia.exposure, id.vars = c("time"))
@@ -272,6 +273,13 @@ sum(predict.df$Exposure[predict.df$Autonomy != "A0" & predict.df$time == 2030])/
 
 plots <- list()
 
+# Change the default style of ggplot (plot titles are now centered by default)
+theme_update(plot.title = element_text(hjust = 0.5))
+theme_update(plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 5.5, l = 5.5)))
+theme_update(axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)))
+theme_update(axis.title.y = element_text(margin = margin(t = 5.5, r = 5.5, b = 5.5, l = 20)))
+
+
  # remove exposure = 0, but also keep 
 
 predict.df.zero <- predict.df[predict.df$Exposure == 0, ]
@@ -281,7 +289,7 @@ predict.df.zero <- predict.df[predict.df$Exposure == 0, ]
   tmp <- predict.df[, names(predict.df) %in% c("time", "Exposure")]
   tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
   
-  plots$total.exposure <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure)) + ggtitle("Total Exposure evolution") + theme(plot.title = element_text(size = 10))
+  plots$total.exposure <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure)) + ggtitle("Total years of exposure") + scale_y_continuous(name = "Years of exposure in 100,000s", breaks = c(0:8) * 10^5, labels = c(0:8), limits = c(0, 800000) ) + scale_x_continuous(name = "Year")
 
   plots$total.exposure
   
@@ -289,7 +297,8 @@ predict.df.zero <- predict.df[predict.df$Exposure == 0, ]
   tmp <- predict.df[, names(predict.df) %in% c("time", "Exposure", "Autonomy")]
   tmp <- aggregate(formula = . ~ time + Autonomy, data = tmp, FUN = sum)
   tmp$Exposure[tmp$Exposure == 0 & tmp$Autonomy == "A2"] <- NA
-  plots$Autonomy.evolution <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total Autonomy evolution") + theme(plot.title = element_text(size = 10))
+  
+  plots$Autonomy.evolution <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total years of exposure for each autonomy level") + theme(plot.title = element_text(size = 10)) + scale_y_continuous(name = "Years of exposure in 100,000s", breaks = c(0:8) * 10^5, labels = c(0:8) ) + scale_x_continuous(name = "Year")
   
   plots$Autonomy.evolution
   
@@ -297,14 +306,16 @@ predict.df.zero <- predict.df[predict.df$Exposure == 0, ]
   tmp <- predict.df[predict.df$Type == "Personal", names(predict.df) %in% c("time", "Exposure", "Autonomy")]
   tmp <- aggregate(formula = . ~ time + Autonomy, data = tmp, FUN = sum)
   tmp$Exposure[tmp$Exposure == 0 & tmp$Autonomy == "A2"] <- NA
-  plots$Autonomy.evolution.personal <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total Autonomy evolution for personal") + theme(plot.title = element_text(size = 10))
+  
+  plots$Autonomy.evolution.personal <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total years of exposure for each autonomy level (personal type)") + theme(plot.title = element_text(size = 10)) + scale_y_continuous(name = "Years of exposure in 100,000s", breaks = c(0:8) * 10^5, labels = c(0:8) ) + scale_x_continuous(name = "Year")
   
   plots$Autonomy.evolution.personal
   
   # Commercial evolution
   tmp <- predict.df[predict.df$Type == "Commercial", names(predict.df) %in% c("time", "Exposure", "Autonomy")]
   tmp <- aggregate(formula = . ~ time + Autonomy, data = tmp, FUN = sum)
-  plots$Autonomy.evolution.commercial <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total Autonomy commercial") + theme(plot.title = element_text(size = 10))
+  
+  plots$Autonomy.evolution.commercial <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total years of exposure for each autonomy level over time (commercial type)") + theme(plot.title = element_text(size = 10)) + scale_y_continuous(name = "Years of exposure in 100,000s", breaks = c(0,0.2,0.4,0.6,0.8,1,1.2,1.4) * 10^5, labels = c(0,0.2,0.4,0.6,0.8,1,1.2,1.4) ) + scale_x_continuous(name = "Year")
   
   plots$Autonomy.evolution.commercial
   

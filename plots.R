@@ -1,9 +1,3 @@
-
-
-<<<<<<< HEAD
-## plots
-```{r}
-
 plots <- list()
 
 # Change the default style of ggplot (plot titles are now centered by default)
@@ -147,28 +141,16 @@ tmp <- predict.df[, c("time", "RiskClass", "prop", "Type", "Autonomy")]
 
 ggplot(data = tmp)+ geom_line(mapping = aes(x = time, y = prop, color = RiskClass)) + facet_wrap(. ~ Type + Autonomy, scales = "free")
 
-```
-=======
-tmp <- predict.df[, c("time", "Exposure", "Type", "Autonomy")]
+tmp <- predict.df[, names(predict.df) %in% c("time", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]
+tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
+tmp.melt <- melt(data = tmp, id = c("time"))
 
-tmp <- aggregate(. ~ time + Type + Autonomy, data = tmp, FUN = sum)
-tmp$Autonomy <- factor(tmp$Autonomy, levels = c("A0", "A1", "A"), ordered = T)
-tmp <- tmp[order(tmp$Autonomy, decreasing = T),]
-
-ggplot(tmp) + geom_bar(mapping = aes(x = time, y = Exposure, fill = Autonomy, group = Type) , 
-                       stat = "identity", 
-                       position = "stack", 
-                       width = 0.2) +
-  facet_wrap(. ~ Type) + 
-  scale_fill_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8")) + 
-  theme_bw(base_size = 20) + 
-  scale_y_continuous(expand = c(0,0), 
-                     name = "Exposure in thousands", 
-                     breaks = c(0, 100000, 200000, 300000, 400000, 500000),
-                     labels = c("0", "100", "200", "300", "400", "500"),
-                     limits = c(0, 500000)) +
-  scale_x_continuous(expand = c(0,0), 
-                     name = "Time")
-
-
->>>>>>> f723414b327c182864543cead7518ca54488cc9b
+#Plot: predicted total claim amount (present value) *new plot*
+ggplot(data = tmp.melt) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+  ggtitle("Predicted total claim amount (present value)") + 
+  scale_y_continuous(name = "Total amount in billions" , breaks = seq(from=0,to=1.500,by=0.100) * 10^9, labels = seq(from=0,to=1.500,by=0.100), expand = c(0,0) ) + 
+  scale_x_continuous(name = "Year", expand = c(0,0)) +
+  theme_bw()+
+  labs(fill = "Coverage\n")+
+   scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31", "AC_MR_PV" = "#D45D00", "AC_CR_PV" = "#FDBE87", "AC_IS_PV" = "#F68D2E"),
+                     labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI","AC_MR_PV" =  "MR","AC_CR_PV" =  "CR","AC_IS_PV" =  "IS"))

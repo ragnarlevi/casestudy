@@ -1,0 +1,468 @@
+---
+title: "Auto"
+author: "Ragnar"
+date: "February 26, 2019"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    theme: lumen
+---
+
+# Libraries
+
+```{r, message=FALSE, warning=FALSE}
+# Libraries ----
+library(readxl) # read exlce
+library(dplyr) # For table manipulations
+library(plyr) # For table manipulations
+library(reshape2) # For melt function to chane data frames to parse into ggplot functions
+library(ggplot2) # For Nice plots
+```
+
+# Functions
+```{r, warning=FALSE}
+
+
+# General functions call
+source("functions.R")
+# GLM - parameters
+
+# Call the GLM.R script, estimates number and AAC for current automoblies. Also
+source("GLM.R")
+
+
+```
+
+
+# Base Scenario
+
+Insert initial variables
+
+```{r, warning=FALSE}
+time.frame <- 0:11
+start.year <- 2019
+t <- seq(min(time.frame), max(time.frame), by = 0.25)
+```
+
+
+
+## Safelife marketshare
+
+```{r, warning=FALSE}
+A0 <- 0.34 + 0.01*t
+A1 <- function(t){
+  if(t<5){
+    1
+  }
+  else{
+    exp(-(t-5)*0.2)*0.6+0.4
+  }
+}
+A2<-  function(t){
+  if(t<5){
+    1
+  }
+  else{
+    exp(-(t-5)*0.19)*0.6+0.4
+  }
+}
+A1 <- Vectorize(FUN = A1, vectorize.args = "t")
+A2 <- Vectorize(FUN = A2, vectorize.args = "t")
+safelife.market.share <- data.frame(time = t,
+                                    A0 = A0,
+                                    A1 = A1(t),
+                                    A2 = A2(t))
+
+m.safe <- melt(data = safelife.market.share, id = "time")
+
+ggplot(data = m.safe) + geom_line(mapping = aes(x = time, y = value, color = variable)) + 
+  scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=5), label = as.character(2019 + seq(from=0,to=20,by=5)), expand = c(0,0)) +
+   scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1), expand = c(0,0)) + # expand -> y axis begins at 0 strict
+    theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    plot.background = element_blank(),
+    panel.background = element_blank(),
+    legend.background = element_blank()) +
+  labs(color = "Autonomy") + ggtitle("Safelife marketshare for each autonomy level") 
+
+
+ 
+
+
+``` 
+
+
+
+## Carbia market exposure Personal in percetnages
+
+```{r, warning=FALSE}
+
+A1 <- exp(0.01*t)-1
+A2 <- function(t){
+  if(t<3){
+    0
+  }else{
+    0.0009*(t-3)^2#exp(0.015*(t-3))-1
+  }
+}
+A2 <- Vectorize(FUN = A2, vectorize.args = "t")
+A0 <- 1-A1-A2(t)
+  
+
+
+carb.personal.pct <- data.frame(time = t,
+                                A0 = A0,
+                                A1 = A1,
+                                A2 = A2(t))
+
+m.carb <- melt(data = carb.personal.pct, id.vars = "time")
+m.carb$value[m.carb$variable == "A2" & m.carb$value == 0] <- NA
+
+
+ggplot(data = m.carb) + geom_line(mapping = aes(x = time, y = value, color = variable)) + 
+    scale_x_continuous(name ="Year", breaks = c(time.frame), label = as.character(2019 + time.frame)) +
+   scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1)) +
+    theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank()) +
+  labs(color = "Autonomy") + ggtitle("Personal autonomy level proportions in Carbia")
+
+# fix axisx position
+
+
+```
+
+## Carbia commercial percentages
+
+```{r, warning=FALSE}
+A1 <- exp(0.012*t)-1
+A2 <- function(t){
+  if(t<3){
+    0
+  }else{
+    0.0019*(t-3)^2#exp(0.015*(t-3))-1
+  }
+}
+A2 <- Vectorize(FUN = A2, vectorize.args = "t")
+A0 <- 1-A1-A2(t)
+
+carb.commercial.pct <- data.frame(time = t,
+                                A0 = A0,
+                                A1 = A1,
+                                A2 = A2(t))
+
+m.carb <- melt(data = carb.commercial.pct, id.vars = "time")
+m.carb$value[m.carb$variable == "A2" & m.carb$value == 0] <- NA
+#m.carb$variable <- factor(m.carb$variable, levels = c("A2", "A1", "A0"), ordered = T)
+
+#ggplot(data = m.carb) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity") + 
+ # scale_fill_manual(values=c("#027984", "#0d0284", "#0755c1"))
+ggplot(data = m.carb) + geom_line(mapping = aes(x = time, y = value, color = variable)) + 
+      scale_x_continuous(name ="Year", breaks = c(time.frame), label = as.character(2019 + time.frame)) +
+   scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1)) +
+    theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank()) +
+  labs(color = "Autonomy") + ggtitle("Commercial autonomy level proportions in Carbia")
+
+```
+
+
+## Carbia total Exposure growth for Commercial and Personal
+
+```{r, warning=FALSE}
+### Exposure of Personal and Commermcial
+mark.share.p <- 0.34
+mark.share.c <- 0.34
+
+personal.exposure <- sum(autocar$Exposure[autocar$Year == 2018 & autocar$Qtr == 4 & autocar$Type == "Personal"])/mark.share.p
+commercial.exposure <- sum(autocar$Exposure[autocar$Year == 2018 & autocar$Qtr == 4 & autocar$Type == "Commercial"])/mark.share.c 
+
+carbia.exposure <- data.frame(time = t,
+                              Personal = personal.exposure*(1+t*0.005),
+                              Commercial = commercial.exposure*(1+0.025)^t)
+
+
+m.carbia.exposure <- melt(data = carbia.exposure, id.vars = c("time"))
+
+ggplot(data = m.carbia.exposure) + geom_line(mapping = aes(x = time, y = value, color = variable)) +
+        scale_x_continuous(name ="Year", breaks = c(time.frame), label = as.character(2019 + time.frame)) +
+   scale_y_continuous(name ="Exposure") +
+    theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank()) +
+  labs(color = "Type") + ggtitle("Exposure growth in Carbia")
+  
+# change to millions 
+
+```
+
+
+## Frequency and Claim multipliers
+```{r, warning=FALSE}
+# Define as lists, same names 
+freq.pct <- list()
+
+freq.pct$A0 <- data.frame(time = t, 
+                          NC_BI.pct = rep(1, length(t)), 
+                          NC_PD.pct = rep(1, length(t)), 
+                          NC_COM.pct = rep(1, length(t)), 
+                          NC_COL.pct = rep(1, length(t)), 
+                          NC_PI.pct = rep(1, length(t)))
+
+freq.pct$A1 <- data.frame(time = t, 
+                          NC_BI.pct = 0.05*(1-carb.personal.pct$A0) + 0.2*carb.personal.pct$A0, 
+                          NC_PD.pct = 0.05*(1-carb.personal.pct$A0) + 0.2*carb.personal.pct$A0,
+                          NC_COM.pct = rep(1, length(t)), 
+                          NC_COL.pct = 0.05*(1-carb.personal.pct$A0) + 0.2*carb.personal.pct$A0,
+                          NC_PI.pct = 0.05*(1-carb.personal.pct$A0) + 0.2*carb.personal.pct$A0)
+
+freq.pct$A2 <- data.frame(time = t, 
+                          NC_BI.pct = 0.025*(1-carb.personal.pct$A0) + 0.1*carb.personal.pct$A0, 
+                          NC_PD.pct = 0.025*(1-carb.personal.pct$A0) + 0.1*carb.personal.pct$A0, 
+                          NC_COM.pct = rep(1, length(t)), 
+                          NC_COL.pct = 0.025*(1-carb.personal.pct$A0) + 0.1*carb.personal.pct$A0, 
+                          NC_PI.pct = 0.025*(1-carb.personal.pct$A0) + 0.1*carb.personal.pct$A0)
+
+loss.pct <- list()
+loss.pct$A0 <- data.frame(time = t, 
+                          AAC_BI.pct = rep(1, length(t)), 
+                          AAC_PD.pct = rep(1, length(t)), 
+                          AAC_COM.pct = rep(1, length(t)), 
+                          AAC_COL.pct = rep(1, length(t)), 
+                          AAC_PI.pct = rep(1, length(t)))
+
+loss.pct$A1 <- data.frame(time = t, 
+                          AAC_BI.pct = rep(1, length(t)), 
+                          AAC_PD.pct = rep(1, length(t)), 
+                          AAC_COM.pct = rep(1.3, length(t)), 
+                          AAC_COL.pct = rep(1.3, length(t)), 
+                          AAC_PI.pct = rep(1, length(t)))
+
+loss.pct$A2 <- data.frame(time = t, 
+                          AAC_BI.pct = rep(1, length(t)), 
+                          AAC_PD.pct = rep(1, length(t)), 
+                          AAC_COM.pct = rep(1.5, length(t)), 
+                          AAC_COL.pct = rep(1.5, length(t)), 
+                          AAC_PI.pct = rep(1, length(t)))
+
+```
+
+
+## Model
+
+
+```{r, warning=FALSE}
+
+time.frame <- time.frame[1:(length(time.frame)-1)]
+
+# interst
+bi_i <- glm$rd$Amount$Model$BI$coefficients[names(glm$rd$Amount$Model$BI$coefficients) == "time"]
+pd_i <- glm$rd$Amount$Model$PD$coefficients[names(glm$rd$Amount$Model$PD$coefficients) == "time"]
+com_i <- glm$rd$Amount$Model$COM$coefficients[names(glm$rd$Amount$Model$COM$coefficients) == "time"]
+col_i <- glm$rd$Amount$Model$COL$coefficients[names(glm$rd$Amount$Model$COL$coefficients) == "time"]
+pi_i <- glm$rd$Amount$Model$PI$coefficients[names(glm$rd$Amount$Model$PI$coefficients) == "time"]
+
+mean_i <- mean(c(bi_i,pd_i,com_i,col_i,pi_i))
+
+predict.df <- model.2(time.frame = time.frame, autocar = autocar, glm.list = glm$rd, safelife.market.share = safelife.market.share, carbia.exposure = carbia.exposure, carb.commercial.pct = carb.commercial.pct, carb.personal.pct = carb.personal.pct, freq.pct = freq.pct, loss.pct = loss.pct, MR.fac = 0.0255, IS.fac = 0.0127, CR.fac = 0.0764, interest = mean_i ) 
+# check if around ~25%
+max(predict.df$time)
+sum(predict.df$Exposure[predict.df$Autonomy != "A0" & predict.df$time == 2030])/sum(predict.df$Exposure[predict.df$time == 2030])
+
+
+```
+
+
+
+## plots
+```{r}
+
+plots <- list()
+
+# Change the default style of ggplot (plot titles are now centered by default)
+theme_update(plot.title = element_text(hjust = 0.5))
+theme_update(plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 5.5, l = 5.5)))
+theme_update(axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)))
+theme_update(axis.title.y = element_text(margin = margin(t = 5.5, r = 5.5, b = 5.5, l = 20)))
+
+
+# remove exposure = 0, but also keep 
+
+predict.df.zero <- predict.df[predict.df$Exposure == 0, ]
+predict.df <- predict.df[predict.df$Exposure != 0, ]
+
+# Total Exposure Growth
+tmp <- predict.df[, names(predict.df) %in% c("time", "Exposure")]
+tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
+
+plots$total.exposure <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure)) + ggtitle("Total years of exposure") + scale_y_continuous(name = "Years of exposure in 100,000s", breaks = c(0:8) * 10^5, labels = c(0:8), limits = c(0, 800000) ) + scale_x_continuous(name = "Year")
+
+plots$total.exposure
+
+# Autonomy evolution
+tmp <- predict.df[, names(predict.df) %in% c("time", "Exposure", "Autonomy")]
+tmp <- aggregate(formula = . ~ time + Autonomy, data = tmp, FUN = sum)
+tmp$Exposure[tmp$Exposure == 0 & tmp$Autonomy == "A2"] <- NA
+
+plots$Autonomy.evolution <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total years of exposure for each autonomy level") + theme(plot.title = element_text(size = 10)) + scale_y_continuous(name = "Years of exposure in 100,000s", breaks = c(0:8) * 10^5, labels = c(0:8) ) + scale_x_continuous(name = "Year")
+
+plots$Autonomy.evolution
+
+# Personal evolution
+tmp <- predict.df[predict.df$Type == "Personal", names(predict.df) %in% c("time", "Exposure", "Autonomy")]
+tmp <- aggregate(formula = . ~ time + Autonomy, data = tmp, FUN = sum)
+tmp$Exposure[tmp$Exposure == 0 & tmp$Autonomy == "A2"] <- NA
+
+plots$Autonomy.evolution.personal <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total years of exposure for each autonomy level (personal type)") + theme(plot.title = element_text(size = 10)) + scale_y_continuous(name = "Years of exposure in 100,000s", breaks = c(0:8) * 10^5, labels = c(0:8) ) + scale_x_continuous(name = "Year")
+
+plots$Autonomy.evolution.personal
+
+# Commercial evolution
+tmp <- predict.df[predict.df$Type == "Commercial", names(predict.df) %in% c("time", "Exposure", "Autonomy")]
+tmp <- aggregate(formula = . ~ time + Autonomy, data = tmp, FUN = sum)
+
+plots$Autonomy.evolution.commercial <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total years of exposure for each autonomy level (commercial type)") + theme(plot.title = element_text(size = 10)) + scale_y_continuous(name = "Years of exposure in 100,000s", breaks = c(0,0.2,0.4,0.6,0.8,1,1.2,1.4) * 10^5, labels = c(0,0.2,0.4,0.6,0.8,1,1.2,1.4) ) + scale_x_continuous(name = "Year")
+
+plots$Autonomy.evolution.commercial
+
+# PLot the Autonomy evolutions
+
+# multiplot(plots$Autonomy.evolution.personal, plots$Autonomy.evolution, plots$Autonomy.evolution.commercial, cols = 2)
+
+
+# Plot Claims evolution personal
+tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI", "Exposure")]
+
+
+tmp <- tmp[, !(names(tmp) %in% "Exposure")]
+
+
+
+tmp <- aggregate(formula = . ~ time + Autonomy + Type, data = tmp, FUN = mean)
+tmp.melt <- melt(data = tmp, id = c("time", "Autonomy", "Type"))
+
+plots$frequency.Personal <- ggplot(data = tmp.melt[tmp.melt$Type == "Personal", ]) + geom_line(mapping = aes(x = time, y = value, color = Autonomy)) + facet_wrap(facets = . ~ variable, scales = "free") + ggtitle("Personal frequency per exposure evolution aggregated With mean")
+
+plots$frequency.Personal
+
+# plot amount evolution personal
+tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "AAC_BI", "AAC_PD", "AAC_COM", "AAC_COL", "AAC_PI")]
+tmp <- aggregate(formula = . ~ time + Autonomy + Type, data = tmp, FUN = mean)
+tmp.melt <- melt(data = tmp, id = c("time", "Autonomy", "Type"))
+
+plots$amount.Personal <- ggplot(data = tmp.melt[tmp.melt$Type == "Personal", ]) + geom_line(mapping = aes(x = time, y = value, color = Autonomy)) + facet_wrap(facets = . ~ variable, scales = "free") + ggtitle("Personal mount evolution aggregated With mean")
+
+plots$amount.Personal
+
+# Plot Claims evolution Commercial
+tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")]
+tmp <- aggregate(formula = . ~ time + Autonomy + Type, data = tmp, FUN = mean)
+tmp.melt <- melt(data = tmp, id = c("time", "Autonomy", "Type"))
+
+plots$frequency.Commercial <- ggplot(data = tmp.melt[tmp.melt$Type == "Commercial", ]) + geom_line(mapping = aes(x = time, y = value, color = Autonomy)) + facet_wrap(facets = . ~ variable, scales = "free") + ggtitle("Commercial frequency evolution aggregated With mean")
+
+plots$frequency.Commercial
+# plot amount evolution Commercial
+tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "AAC_BI", "AAC_PD", "AAC_COM", "AAC_COL", "AAC_PI")]
+tmp <- aggregate(formula = . ~ time + Autonomy + Type, data = tmp, FUN = mean)
+tmp.melt <- melt(data = tmp, id = c("time", "Autonomy", "Type"))
+
+plots$amount.Commercial <- ggplot(data = tmp.melt[tmp.melt$Type == "Commercial", ]) + geom_line(mapping = aes(x = time, y = value, color = Autonomy)) + facet_wrap(facets = . ~ variable, scales = "free") + ggtitle("Commercial amount evolution aggregated With mean")
+plots$amount.Commercial
+
+
+
+
+# Plot AC
+tmp <- predict.df[, names(predict.df) %in% c("time", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI", "AC_IS", "AC_CR", "AC_MR")]
+tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
+tmp.melt <- melt(data = tmp, id = c("time"))
+
+ggplot(data = tmp.melt) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+  ggtitle("Pure_Premium") + 
+  scale_y_continuous(name = "Total amount in billions" , breaks = seq(from=0,to=3.000,by=0.100) * 10^9, labels = seq(from=0,to=3.000,by=0.100), limits=c(0,3*10^9) ) + 
+  scale_x_continuous(name = "Year", expand = c(0,0)) +
+  theme_bw()+
+  labs(fill = "Coverage\n")+
+   scale_fill_manual(values = c("AC_BI" = "#D9E1E2", "AC_PD" = "#BBDDE6"  ,"AC_COM" = "#71B2C9", "AC_COL" = "#4E87A0","AC_PI" = "#072B31", "AC_MR" = "#D45D00", "AC_CR" = "#FDBE87", "AC_IS" = "#F68D2E"),
+                     labels = c("AC_BI" = "BI", "AC_PD" = "PD","AC_COM" =  "COM","AC_COL" =  "COL","AC_PI" =  "PI","AC_MR" =  "MR","AC_CR" =  "CR","AC_IS" =  "IS"))
+
+
+# Plot AC Personal
+tmp <- predict.df[ predict.df$Type == "Personal", names(predict.df) %in% c("time", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI", "AC_CR", "AC_MR", "AC_IS")]
+tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
+tmp.melt <- melt(data = tmp, id = c("time"))
+
+ggplot(data = tmp.melt) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity") + ggtitle("Total personal claim amount") 
+
+# Plot AC Commercial
+tmp <- predict.df[ predict.df$Type == "Commercial", names(predict.df) %in% c("time", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI", "AC_CR", "AC_MR", "AC_IS")]
+tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
+tmp.melt <- melt(data = tmp, id = c("time"))
+
+ggplot(data = tmp.melt) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity") + ggtitle("Total commercial claim amount") 
+
+
+# Plot NC
+tmp <- predict.df[, names(predict.df) %in% c("time", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")]
+tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
+tmp.melt <- melt(data = tmp, id = c("time"))
+
+ggplot(data = tmp.melt) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity") + ggtitle("total claims")
+
+# Plot NC Personal
+tmp <- predict.df[ predict.df$Type == "Personal", names(predict.df) %in% c("time", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")]
+tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
+tmp.melt <- melt(data = tmp, id = c("time"))
+
+ggplot(data = tmp.melt) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity") + ggtitle("Total personal claims") 
+
+# Plot NC Commercial
+tmp <- predict.df[ predict.df$Type == "Commercial", names(predict.df) %in% c("time", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")]
+tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
+tmp.melt <- melt(data = tmp, id = c("time"))
+
+ggplot(data = tmp.melt) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity") + ggtitle("Total commercial claims") 
+
+tmp <- predict.df[, c("time", "RiskClass", "prop", "Type", "Autonomy")]
+
+ggplot(data = tmp)+ geom_line(mapping = aes(x = time, y = prop, color = RiskClass)) + facet_wrap(. ~ Type + Autonomy, scales = "free")
+
+tmp <- predict.df[, names(predict.df) %in% c("time", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]
+tmp <- aggregate(formula = . ~ time , data = tmp, FUN = sum)
+tmp.melt <- melt(data = tmp, id = c("time"))
+
+#Plot: predicted total claim amount (present value) *new plot*
+ggplot(data = tmp.melt) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+  ggtitle("Predicted total claim amount (present value)") + 
+  scale_y_continuous(name = "Total amount in billions" , breaks = seq(from=0,to=1.500,by=0.100) * 10^9, labels = seq(from=0,to=1.500,by=0.100), expand = c(0,0) ) + 
+  scale_x_continuous(name = "Year", expand = c(0,0)) +
+  theme_bw()+
+  labs(fill = "Coverage\n")+
+   scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31", "AC_MR_PV" = "#D45D00", "AC_CR_PV" = "#FDBE87", "AC_IS_PV" = "#F68D2E"),
+                     labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI","AC_MR_PV" =  "MR","AC_CR_PV" =  "CR","AC_IS_PV" =  "IS"))
+
+  
+```
+
+
+
+
+
+
+
+
+
+
+

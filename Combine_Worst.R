@@ -1,0 +1,172 @@
+
+A0 <- 0.34-0.005*t
+A1 <- exp(-t*0.2)*0.16+0.34
+A2 <- exp(-t*0.19)*0.16+0.34
+safelife.market.share <- data.frame(time = t,
+                                    A0 = A0,
+                                    A1 = A1,
+                                    A2 = A2)
+
+m.safe <- melt(data = safelife.market.share, id = "time")
+
+ggplot(data = m.safe) + geom_line(mapping = aes(x = time, y = value, color = variable)) + 
+  scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=5), label = as.character(2019 + seq(from=0,to=20,by=5)), expand = c(0,0)) +
+  scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1), expand = c(0,0)) + # expand -> y axis begins at 0 strict
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        panel.background = element_blank(),
+        legend.background = element_blank()) +
+  labs(color = "Autonomy") + ggtitle("Safelife marketshare for each autonomy level") 
+
+## Carbia personal percentages
+A1 <- function(t){
+  if(t<5){
+    (exp(0.01*t)-1)*exp((t-5)*0.05)
+  }
+  else{
+    exp(0.01*t)-1
+  }
+}
+A2 <- function(t){
+  if(t<3){
+    0
+  }else{
+    0.0005*(t-3)^2#exp(0.015*(t-3))-1
+  }
+}
+A1 <- Vectorize(FUN = A1, vectorize.args = "t")
+A2 <- Vectorize(FUN = A2, vectorize.args = "t")
+A0 <- 1-A1(t)-A2(t)
+
+
+
+carb.personal.pct <- data.frame(time = t,
+                                A0 = A0,
+                                A1 = A1(t),
+                                A2 = A2(t))
+
+m.carb <- melt(data = carb.personal.pct, id.vars = "time")
+m.carb$value[m.carb$variable == "A2" & m.carb$value == 0] <- NA
+
+
+ggplot(data = m.carb) + geom_line(mapping = aes(x = time, y = value, color = variable)) + 
+  scale_x_continuous(name ="Year", breaks = c(time.frame), label = as.character(2019 + time.frame)) +
+  scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1)) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) +
+  labs(color = "Autonomy") + ggtitle("Personal autonomy level proportions in Carbia")
+
+# fix axisx position
+
+
+A1 <- function(t){
+  if(t<5){
+    (exp(0.012*t)-1)*exp((t-5)*0.05)
+  }
+  else{
+    exp(0.012*t)-1
+  }
+}
+A2 <- function(t){
+  if(t<3){
+    0
+  }else{
+    0.001*(t-3)^2#exp(0.015*(t-3))-1
+  }
+}
+A1 <- Vectorize(FUN = A1, vectorize.args = "t")
+A2 <- Vectorize(FUN = A2, vectorize.args = "t")
+A0 <- 1-A1(t)-A2(t)
+
+carb.commercial.pct <- data.frame(time = t,
+                                  A0 = A0,
+                                  A1 = A1(t),
+                                  A2 = A2(t))
+
+m.carb <- melt(data = carb.commercial.pct, id.vars = "time")
+m.carb$value[m.carb$variable == "A2" & m.carb$value == 0] <- NA
+#m.carb$variable <- factor(m.carb$variable, levels = c("A2", "A1", "A0"), ordered = T)
+
+#ggplot(data = m.carb) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity") + 
+# scale_fill_manual(values=c("#027984", "#0d0284", "#0755c1"))
+ggplot(data = m.carb) + geom_line(mapping = aes(x = time, y = value, color = variable)) + 
+  scale_x_continuous(name ="Year", breaks = c(time.frame), label = as.character(2019 + time.frame)) +
+  scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1)) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) +
+  labs(color = "Autonomy") + ggtitle("Commercial autonomy level proportions in Carbia")
+
+
+# change to millions 
+
+
+# Define as lists, same names 
+freq.pct <- list()
+
+freq.pct$A0 <- data.frame(time = t, 
+                          NC_BI.pct = rep(1, length(t)), 
+                          NC_PD.pct = rep(1, length(t)), 
+                          NC_COM.pct = rep(1, length(t)), 
+                          NC_COL.pct = rep(1, length(t)), 
+                          NC_PI.pct = rep(1, length(t)))
+
+freq.pct$A1 <- data.frame(time = t, 
+                          NC_BI.pct = (0.05*(1-carb.personal.pct$A0)/2 + 0.2*carb.personal.pct$A0), 
+                          NC_PD.pct = (0.05*(1-carb.personal.pct$A0)/2 + 0.2*carb.personal.pct$A0),
+                          NC_COM.pct = rep(1, length(t)), 
+                          NC_COL.pct = (0.05*(1-carb.personal.pct$A0)/2 + 0.2*carb.personal.pct$A0),
+                          NC_PI.pct = (0.05*(1-carb.personal.pct$A0)/2 + 0.2*carb.personal.pct$A0))
+
+freq.pct$A2 <- data.frame(time = t, 
+                          NC_BI.pct = (0.025*(1-carb.personal.pct$A0)/2 + 0.1*carb.personal.pct$A0), 
+                          NC_PD.pct = (0.025*(1-carb.personal.pct$A0)/2 + 0.1*carb.personal.pct$A0), 
+                          NC_COM.pct = rep(1, length(t)), 
+                          NC_COL.pct = (0.025*(1-carb.personal.pct$A0)/2 + 0.1*carb.personal.pct$A0), 
+                          NC_PI.pct = (0.025*(1-carb.personal.pct$A0)/2 + 0.1*carb.personal.pct$A0))
+
+loss.pct <- list()
+loss.pct$A0 <- data.frame(time = t, 
+                          AAC_BI.pct = rep(1, length(t)), 
+                          AAC_PD.pct = rep(1, length(t)), 
+                          AAC_COM.pct = rep(1, length(t)), 
+                          AAC_COL.pct = rep(1, length(t)), 
+                          AAC_PI.pct = rep(1, length(t)))
+
+loss.pct$A1 <- data.frame(time = t, 
+                          AAC_BI.pct = rep(1, length(t)), 
+                          AAC_PD.pct = rep(1, length(t)), 
+                          AAC_COM.pct = rep((1.3-1)/2+1, length(t)), 
+                          AAC_COL.pct = rep((1.3-1)/2+1, length(t)), 
+                          AAC_PI.pct = rep(1, length(t)))
+
+loss.pct$A2 <- data.frame(time = t, 
+                          AAC_BI.pct = rep(1, length(t)), 
+                          AAC_PD.pct = rep(1, length(t)), 
+                          AAC_COM.pct = rep((1.5-1)/2+1, length(t)), 
+                          AAC_COL.pct = rep((1.5-1)/2+1, length(t)), 
+                          AAC_PI.pct = rep(1, length(t)))
+
+
+
+time.frame <- time.frame[1:(length(time.frame)-1)]
+
+# interst
+bi_i <- glm$rd$Amount$Model$BI$coefficients[names(glm$rd$Amount$Model$BI$coefficients) == "time"]
+pd_i <- glm$rd$Amount$Model$PD$coefficients[names(glm$rd$Amount$Model$PD$coefficients) == "time"]
+com_i <- glm$rd$Amount$Model$COM$coefficients[names(glm$rd$Amount$Model$COM$coefficients) == "time"]
+col_i <- glm$rd$Amount$Model$COL$coefficients[names(glm$rd$Amount$Model$COL$coefficients) == "time"]
+pi_i <- glm$rd$Amount$Model$PI$coefficients[names(glm$rd$Amount$Model$PI$coefficients) == "time"]
+
+mean_i <- mean(c(bi_i,pd_i,com_i,col_i,pi_i))
+
+Base <- model.2(time.frame = time.frame, autocar = autocar, glm.list = glm$rd, safelife.market.share = safelife.market.share, carbia.exposure = carbia.exposure, carb.commercial.pct = carb.commercial.pct, carb.personal.pct = carb.personal.pct, freq.pct = freq.pct, loss.pct = loss.pct, MR.fac = 0.0255/3, IS.fac = 0.0127/3, CR.fac = 0.0764/3, interest = mean_i ) 
+# check if around ~25%

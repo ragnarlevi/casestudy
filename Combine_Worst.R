@@ -120,18 +120,18 @@ freq.pct$A0 <- data.frame(time = t,
                           NC_PI.pct = rep(1, length(t)))
 
 freq.pct$A1 <- data.frame(time = t, 
-                          NC_BI.pct = (0.05*(1-carb.personal.pct$A0)/2 + 0.2*carb.personal.pct$A0), 
-                          NC_PD.pct = (0.05*(1-carb.personal.pct$A0)/2 + 0.2*carb.personal.pct$A0),
+                          NC_BI.pct = (0.05*(1-carb.personal.pct$A0) + 0.2*carb.personal.pct$A0)/2, 
+                          NC_PD.pct = (0.05*(1-carb.personal.pct$A0) + 0.2*carb.personal.pct$A0)/2,
                           NC_COM.pct = rep(1, length(t)), 
-                          NC_COL.pct = (0.05*(1-carb.personal.pct$A0)/2 + 0.2*carb.personal.pct$A0),
-                          NC_PI.pct = (0.05*(1-carb.personal.pct$A0)/2 + 0.2*carb.personal.pct$A0))
+                          NC_COL.pct = (0.05*(1-carb.personal.pct$A0) + 0.2*carb.personal.pct$A0)/2,
+                          NC_PI.pct = (0.05*(1-carb.personal.pct$A0) + 0.2*carb.personal.pct$A0)/2)
 
 freq.pct$A2 <- data.frame(time = t, 
-                          NC_BI.pct = (0.025*(1-carb.personal.pct$A0)/2 + 0.1*carb.personal.pct$A0), 
-                          NC_PD.pct = (0.025*(1-carb.personal.pct$A0)/2 + 0.1*carb.personal.pct$A0), 
+                          NC_BI.pct = (0.025*(1-carb.personal.pct$A0) + 0.1*carb.personal.pct$A0)/2, 
+                          NC_PD.pct = (0.025*(1-carb.personal.pct$A0) + 0.1*carb.personal.pct$A0)/2, 
                           NC_COM.pct = rep(1, length(t)), 
-                          NC_COL.pct = (0.025*(1-carb.personal.pct$A0)/2 + 0.1*carb.personal.pct$A0), 
-                          NC_PI.pct = (0.025*(1-carb.personal.pct$A0)/2 + 0.1*carb.personal.pct$A0))
+                          NC_COL.pct = (0.025*(1-carb.personal.pct$A0) + 0.1*carb.personal.pct$A0)/2, 
+                          NC_PI.pct = (0.025*(1-carb.personal.pct$A0) + 0.1*carb.personal.pct$A0)/2)
 
 loss.pct <- list()
 loss.pct$A0 <- data.frame(time = t, 
@@ -157,7 +157,6 @@ loss.pct$A2 <- data.frame(time = t,
 
 
 
-time.frame <- time.frame[1:(length(time.frame)-1)]
 
 # interst
 bi_i <- glm$rd$Amount$Model$BI$coefficients[names(glm$rd$Amount$Model$BI$coefficients) == "time"]
@@ -168,5 +167,5 @@ pi_i <- glm$rd$Amount$Model$PI$coefficients[names(glm$rd$Amount$Model$PI$coeffic
 
 mean_i <- mean(c(bi_i,pd_i,com_i,col_i,pi_i))
 
-Base <- model.2(time.frame = time.frame, autocar = autocar, glm.list = glm$rd, safelife.market.share = safelife.market.share, carbia.exposure = carbia.exposure, carb.commercial.pct = carb.commercial.pct, carb.personal.pct = carb.personal.pct, freq.pct = freq.pct, loss.pct = loss.pct, MR.fac = 0.0255/3, IS.fac = 0.0127/3, CR.fac = 0.0764/3, interest = mean_i ) 
+combine_Worst <- model.2(time.frame = time.frame[1:(length(time.frame)-1)], autocar = autocar, glm.list = glm$rd, safelife.market.share = safelife.market.share, carbia.exposure = carbia.exposure, carb.commercial.pct = carb.commercial.pct, carb.personal.pct = carb.personal.pct, freq.pct = freq.pct, loss.pct = loss.pct, MR.fac = 0.0255/3, IS.fac = 0.0127/3, CR.fac = 0.0764/3, interest = mean_i ) 
 # check if around ~25%

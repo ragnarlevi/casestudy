@@ -163,9 +163,6 @@ loss.pct$A2 <- data.frame(time = t,
                           AAC_PI.pct = rep(1, length(t)))
 
 
-
-time.frame <- time.frame[1:(length(time.frame)-1)]
-
 # interst
 bi_i <- glm$rd$Amount$Model$BI$coefficients[names(glm$rd$Amount$Model$BI$coefficients) == "time"]
 pd_i <- glm$rd$Amount$Model$PD$coefficients[names(glm$rd$Amount$Model$PD$coefficients) == "time"]
@@ -175,5 +172,5 @@ pi_i <- glm$rd$Amount$Model$PI$coefficients[names(glm$rd$Amount$Model$PI$coeffic
 
 mean_i <- mean(c(bi_i,pd_i,com_i,col_i,pi_i))
 
-Auto_Coverage_Worst <- model.2(time.frame = time.frame, autocar = autocar, glm.list = glm$rd, safelife.market.share = safelife.market.share, carbia.exposure = carbia.exposure, carb.commercial.pct = carb.commercial.pct, carb.personal.pct = carb.personal.pct, freq.pct = freq.pct, loss.pct = loss.pct, MR.fac = 0.0255/3, IS.fac = 0.0127/3, CR.fac = 0.0764/3, interest = mean_i ) 
+Auto_Coverage_Worst <- model.2(time.frame = time.frame[1:(length(time.frame)-1)], autocar = autocar, glm.list = glm$rd, safelife.market.share = safelife.market.share, carbia.exposure = carbia.exposure, carb.commercial.pct = carb.commercial.pct, carb.personal.pct = carb.personal.pct, freq.pct = freq.pct, loss.pct = loss.pct, MR.fac = 0.0255/3, IS.fac = 0.0127/3, CR.fac = 0.0764/3, interest = mean_i ) 
 # check if around ~25%

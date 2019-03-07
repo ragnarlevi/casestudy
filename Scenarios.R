@@ -131,6 +131,13 @@
                              ordered = T)
   tmp.history.pv <- tmp.history.pv[order(tmp.history.pv$Scenario),]
   
+  tmp.all.pv$Scenario2 <- factor(tmp.all.pv$Scenario, 
+                                 labels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "bold(Combined)"))
+  
+  tmp.history.pv$Scenario2 <- factor(tmp.history.pv$Scenario, 
+                                 labels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "bold(Combined)"))
+  
+  
   
  p <-  ggplot() + 
     geom_ribbon(data = dcast(tmp.all.pv, time + Scenario ~  Case, value.var = "PurePremium"), mapping = aes(x = time, ymin = Worst,  ymax = Best), alpha = 0.8, fill = "#6191B4")+
@@ -138,10 +145,12 @@
     geom_line(data = tmp.all.pv, mapping = aes(x = time, y = PurePremium, color = Case), size = 1.1) +
     theme_bw(base_size = 16) +
     scale_color_manual(values = c("Base" = "#004680", "Best" = "#4B82A8", "Worst" = "#4B82A8"))+
-  theme(plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
-        axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
-        axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
-        panel.spacing = unit(2, "lines")) + 
+  theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+        axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
+        axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0)), 
+        legend.position = c(0.85, 0.2) ,
+        panel.spacing = unit(2, "lines"),
+        plot.margin = unit(c(0.3,0.8,0.3,1), "cm")) + 
     scale_y_continuous(expand = c(0,0), 
                        name = "Pure Premium in billions", 
                        breaks = seq(0, 2.2, by = 0.2)*10^(9),
@@ -153,52 +162,56 @@
                        labels = seq(2010, 2030, by = 5),
                        limit = c(2009,2030)) +
     ggtitle("Scenarios of discounted pure premiums")+ 
-    facet_wrap(. ~ Scenario )
+    facet_wrap(. ~ Scenario, scales = "free_x")
+  p
   
-  
- tmp.all.pv$facet_fill_color <- c("red", "green", "blue", "yellow", "orange")[tmp.all.pv$Scenario]
-  
-  
-  dummy <- p
-  dummy$layers <- NULL
-  dummy <- dummy + geom_rect(data=tmp.all.pv, xmin=-Inf, ymin=-Inf, xmax=Inf, ymax=Inf,
-                             aes(fill = facet_fill_color))
-  
-  library(gtable)
-  library(grid)
-  library(gridExtra)
-  g1 <- ggplotGrob(p)
-  g2 <- ggplotGrob(dummy)
-  
-  gtable_select <- function (x, ...) 
-  {
-    matches <- c(...)
-    x$layout <- x$layout[matches, , drop = FALSE]
-    x$grobs <- x$grobs[matches]
-    x
-  }
-  
-  panels <- grepl(pattern="panel", g2$layout$name)
-  strips <- grepl(pattern="strip-right", g2$layout$name)
-  g2$grobs[strips] <- replicate(sum(strips), nullGrob(), simplify = FALSE)
-  g2$layout$l[panels] <- g2$layout$l[panels] + 1
-  g2$layout$r[panels] <- g2$layout$r[panels] + 2
-  
-  new_strips <- gtable_select(g2, panels | strips)
-  grid.newpage()
-  grid.draw(new_strips)
-  
-  gtable_stack <- function(g1, g2){
-    g1$grobs <- c(g1$grobs, g2$grobs)
-    g1$layout <- rbind(g1$layout, g2$layout)
-    g1
-  }
-  ## ideally you'd remove the old strips, for now they're just covered
-  new_plot <- gtable_stack(g1, new_strips)
-  grid.newpage()
-  grid.draw(new_plot)
-    
-  
+ # # tmp.all.pv$facet_fill_color <- c("red", "green", "blue", "yellow", "orange")[tmp.all.pv$Scenario]
+ # 
+ # 
+ #  dummy <- p
+ #  dummy$layers <- NULL
+ #  dummy <- dummy + geom_rect(data=tmp.all.pv, xmin=-Inf, ymin=-Inf, xmax=Inf, ymax=Inf,
+ #                             aes(fill = facet_fill_color))
+ # 
+ #  library(gtable)
+ #  library(grid)
+ #  library(gridExtra)
+ # 
+ #  library(gtable)
+ #  gt = ggplot_gtable(ggplot_build(p))
+ # 
+ #  g1 <- ggplotGrob(p)
+ #  g2 <- ggplotGrob(dummy)
+ # 
+ #  gtable_select <- function (x, ...)
+ #  {
+ #    matches <- c(...)
+ #    x$layout <- x$layout[matches, , drop = FALSE]
+ #    x$grobs <- x$grobs[matches]
+ #    x
+ #  }
+ #  
+ # 
+ #  panels <- grepl(pattern="panel", g2$layout$name)
+ #  strips <- grepl(pattern="strip_t", g2$layout$name)
+ #  g2$layout$t[panels] <- g2$layout$t[panels] - 1
+ #  g2$layout$b[panels] <- g2$layout$b[panels] - 1
+ # 
+ #  new_strips <- gtable_select(g2, strips | panels)
+ #  grid.newpage()
+ #  grid.draw(new_strips)
+ # 
+ #  gtable_stack <- function(g1, g2){
+ #    g1$grobs <- c(g1$grobs, g2$grobs)
+ #    g1$layout <- transform(g1$layout, z= z-max(z), name="g2")
+ #    g1$layout <- rbind(g1$layout, g2$layout)
+ #    g1
+ #  }
+ #  ## ideally you'd remove the old strips, for now they're just covered
+ #  new_plot <- gtable_stack(g1, new_strips)
+ #  grid.newpage()
+ #  grid.draw(new_plot)
+
   
   tmp.history <- history[, c("time", "Case", "Scenario", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI", "AC_MR", "AC_CR", "AC_IS")]
   tmp.all <- all[, c("time", "Case", "Scenario", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI", "AC_MR", "AC_CR", "AC_IS")]

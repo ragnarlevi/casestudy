@@ -173,5 +173,8 @@ pi_i <- glm$rd$Amount$Model$PI$coefficients[names(glm$rd$Amount$Model$PI$coeffic
 
 mean_i <- mean(c(bi_i,pd_i,com_i,col_i,pi_i))
 
-Auto_Multiplier_Worst <- model.2(time.frame = time.frame[1:(length(time.frame)-1)], autocar = autocar, glm.list = glm$rd, safelife.market.share = safelife.market.share, carbia.exposure = carbia.exposure, carb.commercial.pct = carb.commercial.pct, carb.personal.pct = carb.personal.pct, freq.pct = freq.pct, loss.pct = loss.pct, MR.fac = 0.0255, IS.fac = 0.0127, CR.fac = 0.0764, interest = mean_i ) 
-# check if around ~25%
+Auto_Multiplier_Worst <- model.2(time.frame = time.frame[1:(length(time.frame)-1)], autocar = autocar, glm.list = glm$rd, 
+                                 safelife.market.share = safelife.market.share, carbia.exposure = carbia.exposure, carb.commercial.pct = carb.commercial.pct, 
+                                 carb.personal.pct = carb.personal.pct, freq.pct = freq.pct, loss.pct = loss.pct, 
+                                 MR.fac.a1 = 0.0255, IS.fac.a1 = 0.0127, CR.fac.a1 = 0.0464, interest = mean_i,
+                                 MR.fac.a2 = 0.0255, IS.fac.a2 = 0.0127, CR.fac.a2 = 0.0764) 

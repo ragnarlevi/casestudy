@@ -325,34 +325,66 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   # 
   # x <- rowSums( cbind(x.BI, x.PD, x.COM, x.COL, x.PI))
   # 
- 
   
-  # Malfunction Risk, make sure A0 is just 0 or NA
-  # predict.df$NC_MR <- 0
-  # predict.df$NC_MR[predict.df$Autonomy != "A0"] <- total.coverage.sum.nc*rowMeans(predict.df[predict.df$Autonomy != "A0", c("NC_BI.pct", "NC_PD.pct", "NC_COM.pct", "NC_COL.pct", "NC_PI.pct")])
-  # predict.df$AAC_MR <- x
-  predict.df$AC_MR <- rowSums(cbind(predict.df$AC_BI, predict.df$AC_PD, predict.df$AC_COL, predict.df$AC_COM, predict.df$AC_PI))
-  predict.df$AC_MR[predict.df$Autonomy == "A0"] <- 0
+  # New coverages are percentages of the total loss for A0 and then divide by exposure
+  tmp <- autocar
+  tmp$Autonomy <- "A0"
+  total.loss.A0 <- cbind(tmp[, c("time", "RiskClass", "Type", "Autonomy")] ,rowSums(cbind(tmp$AC_BI/tmp$Exposure, 
+                                                                                                 tmp$AC_PD/tmp$Exposure, 
+                                                                                                 tmp$AC_COL/tmp$Exposure, 
+                                                                                                 tmp$AC_COM/tmp$Exposure, 
+                                                                                                 tmp$AC_PI/tmp$Exposure)))
+  names(total.loss.A0) <- c("time", "RiskClass", "Type", "Autonomy", "total.loss")
+  # we only want A0, and only time = 2019 and the remove the time column
+  total.loss.A0 <-  total.loss.A0[total.loss.A0$Autonomy == "A0" & total.loss.A0$time == 2019, ]
+  total.loss.A0 <- total.loss.A0[, !(names(total.loss.A0) %in% "time")]
+  # A1 has the same values as A0
+  total.loss.A1 <- total.loss.A0
+  # we need to change the Autonomy level
+  total.loss.A1$Autonomy <- "A1"
+  # A2 is a little more trickier because not the same Risk Classes but we just aggregate
+  total.loss.A2 <- total.loss.A0
+  total.loss.A2$Autonomy <- "A2"
+  total.loss.A2$RiskClass[substr(total.loss.A2$RiskClass,1,1) == "S"] <- "Small"
+  total.loss.A2$RiskClass[substr(total.loss.A2$RiskClass,1,1) == "M"] <- "Medium"
+  total.loss.A2$RiskClass[substr(total.loss.A2$RiskClass,1,1) == "L"] <- "Large"
+  
+  total.loss.A2 <- aggregate(. ~RiskClass + Type + Autonomy, data = total.loss.A2, FUN = mean)
+  
+  # Then we bind
+  
+  total.loss <- rbind(total.loss.A0, total.loss.A1, total.loss.A2)
+  # A0 should be zero because A0 does not have the new coverage
+  total.loss$total.loss[total.loss$Autonomy == "A0"] <- 0
+  
+  # Now we can join the tables on the keys
+  
+  predict.df <- inner_join(x = predict.df, y = total.loss, by = c("RiskClass", "Type", "Autonomy"))
+  # View(predict.df[predict.df$Type == "Personal" & predict.df$Autonomy == "A2", c("time", "total.loss")])
+  
+  # create new coverage and adjust ALSO ADD exposure!
+  predict.df$AC_MR <- predict.df$total.loss
   predict.df$AC_MR[predict.df$Autonomy == "A1"] <- predict.df$AC_MR[predict.df$Autonomy == "A1"]*MR.fac.a1
   predict.df$AC_MR[predict.df$Autonomy == "A2"] <- predict.df$AC_MR[predict.df$Autonomy == "A2"]*MR.fac.a2
+  predict.df$AC_MR <- predict.df$AC_MR*predict.df$Exposure
+  
   
   # INFRASTRUCTURE rIS
-  # predict.df$NC_IS <- 0
-  # predict.df$NC_IS[predict.df$Autonomy != "A0"] <- total.coverage.sum.nc*rowMeans(predict.df[predict.df$Autonomy != "A0", c("NC_BI.pct", "NC_PD.pct", "NC_COM.pct", "NC_COL.pct", "NC_PI.pct")])
-  # predict.df$AAC_IS <- x
-  predict.df$AC_IS <- rowSums(cbind(predict.df$AC_BI, predict.df$AC_PD, predict.df$AC_COL, predict.df$AC_COM, predict.df$AC_PI))
-  predict.df$AC_IS[predict.df$Autonomy == "A0"] <- 0
+  # create new coverage and adjust
+  predict.df$AC_IS <- predict.df$total.loss
   predict.df$AC_IS[predict.df$Autonomy == "A1"] <- predict.df$AC_IS[predict.df$Autonomy == "A1"]*IS.fac.a1
   predict.df$AC_IS[predict.df$Autonomy == "A2"] <- predict.df$AC_IS[predict.df$Autonomy == "A2"]*IS.fac.a2
+  predict.df$AC_IS <- predict.df$AC_IS*predict.df$Exposure
   
   # Cyber Risk
-  # predict.df$NC_CR <- 0
-  # predict.df$NC_CR[predict.df$Autonomy != "A0"] <- total.coverage.sum.nc*rowMeans(predict.df[predict.df$Autonomy != "A0", c("NC_BI.pct", "NC_PD.pct", "NC_COM.pct", "NC_COL.pct", "NC_PI.pct")])
-  # predict.df$AAC_CR <- x
-  predict.df$AC_CR <- rowSums(cbind(predict.df$AC_BI, predict.df$AC_PD, predict.df$AC_COL, predict.df$AC_COM, predict.df$AC_PI))
-  predict.df$AC_CR[predict.df$Autonomy == "A0"] <- 0
+  # create new coverage and adjust
+  predict.df$AC_CR <- predict.df$total.loss
   predict.df$AC_CR[predict.df$Autonomy == "A1"] <- predict.df$AC_CR[predict.df$Autonomy == "A1"]*CR.fac.a1
   predict.df$AC_CR[predict.df$Autonomy == "A2"] <- predict.df$AC_CR[predict.df$Autonomy == "A2"]*CR.fac.a2
+  predict.df$AC_CR <- predict.df$AC_CR*predict.df$Exposure
+  
+  # Finnaly remove the total loss column
+  predict.df <- predict.df[, !(names(predict.df) %in% "total.loss")]
   
   # Rbind the historical data but first we need to make sure the columns are the same
 
@@ -402,6 +434,15 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   
   predict.df$pv_factor <- exp((predict.df$time-2019)*interest)
   
+  
+  # Remark NOTE!!!!!!!!!! New coverages have not bee accumulated
+  # so we accumulate with interest and divide again for the sake of 
+  # consistancy
+  
+  predict.df$AC_MR <- predict.df$AC_MR*predict.df$pv_factor
+  predict.df$AC_IS <- predict.df$AC_IS*predict.df$pv_factor
+  predict.df$AC_CR <- predict.df$AC_CR*predict.df$pv_factor
+  
   predict.df$AC_BI_PV <- predict.df$AC_BI/predict.df$pv_factor
   predict.df$AC_PD_PV <- predict.df$AC_PD/predict.df$pv_factor
   predict.df$AC_COM_PV <- predict.df$AC_COM/predict.df$pv_factor
@@ -416,12 +457,6 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   predict.df$AAC_COM_PV <- predict.df$AAC_COM/predict.df$pv_factor
   predict.df$AAC_COL_PV <- predict.df$AAC_COL/predict.df$pv_factor
   predict.df$AAC_PI_PV <- predict.df$AAC_PI/predict.df$pv_factor
-  # predict.df$AAC_MR_PV <- predict.df$AAC_MR/predict.df$pv_factor
-  # predict.df$AAC_CR_PV <- predict.df$AAC_CR/predict.df$pv_factor
-  # predict.df$AAC_IS_PV <- predict.df$AAC_IS/predict.df$pv_factor
-  
-  
-  
   
   return(predict.df)
   

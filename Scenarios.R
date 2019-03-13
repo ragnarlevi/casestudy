@@ -187,6 +187,137 @@
   
   
   
+  
+  # Calculate Scenario Impact, 16 + 2 calculations...brute force
+  
+  # final year of calculation
+  end.time <- max(Base$time)
+  
+  # Base total loss
+  # TRADITIONAL
+  
+  impacts <- data.frame(matrix(NA,  ncol =6, nrow = 4))
+  names(impacts) <- c("b.trad", "b.aut", "u.trad", "u.aut", "d.trad", "d.aut")
+  rownames(impacts) <- c("ms", "pct", "mult", "cov")
+  
+  
+  Base.tl.trad <- sum(Base[Base$time == end.time & Base$Autonomy == "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                            "AC_COM_PV", "AC_COL_PV",
+                                                                            "AC_PI_PV", "AC_MR_PV",
+                                                                            "AC_CR_PV", "AC_IS_PV")])
+  
+  impacts$b.trad <- Base.tl.trad
+  
+  # autonomous
+  Base.tl.aut <- sum(Base[Base$time == end.time & Base$Autonomy != "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                            "AC_COM_PV", "AC_COL_PV",
+                                                                            "AC_PI_PV", "AC_MR_PV",
+                                                                            "AC_CR_PV", "AC_IS_PV")])
+  impacts$b.aut <- Base.tl.aut
+  
+  # Upward market share
+  tmp <- Auto_safelife_ms_Best
+  impacts[rownames(impacts) %in% "ms", "u.trad"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy == "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                            "AC_COM_PV", "AC_COL_PV",
+                                                                                            "AC_PI_PV", "AC_MR_PV",
+                                                                                            "AC_CR_PV", "AC_IS_PV")])
+  impacts[rownames(impacts) %in% "ms", "u.aut"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy != "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                           "AC_COM_PV", "AC_COL_PV",
+                                                                                                           "AC_PI_PV", "AC_MR_PV",
+                                                                                                           "AC_CR_PV", "AC_IS_PV")])
+  
+  #downward ms 
+  tmp <- Auto_Safelife_ms_Worst
+  impacts[rownames(impacts) %in% "ms", "d.trad"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy == "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                           "AC_COM_PV", "AC_COL_PV",
+                                                                                                           "AC_PI_PV", "AC_MR_PV",
+                                                                                                           "AC_CR_PV", "AC_IS_PV")])
+  impacts[rownames(impacts) %in% "ms", "d.aut"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy != "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                          "AC_COM_PV", "AC_COL_PV",
+                                                                                                          "AC_PI_PV", "AC_MR_PV",
+                                                                                                          "AC_CR_PV", "AC_IS_PV")])
+  
+  
+  
+  # Upward pct
+  tmp <- Auto_Exposure_pct_Best
+  impacts[rownames(impacts) %in% "pct", "u.trad"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy == "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                           "AC_COM_PV", "AC_COL_PV",
+                                                                                                           "AC_PI_PV", "AC_MR_PV",
+                                                                                                           "AC_CR_PV", "AC_IS_PV")])
+  impacts[rownames(impacts) %in% "pct", "u.aut"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy != "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                          "AC_COM_PV", "AC_COL_PV",
+                                                                                                          "AC_PI_PV", "AC_MR_PV",
+                                                                                                          "AC_CR_PV", "AC_IS_PV")])
+  
+  #downward pct
+  tmp <- Auto_Exposure_pct_Worst
+  impacts[rownames(impacts) %in% "pct", "d.trad"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy == "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                           "AC_COM_PV", "AC_COL_PV",
+                                                                                                           "AC_PI_PV", "AC_MR_PV",
+                                                                                                           "AC_CR_PV", "AC_IS_PV")])
+  impacts[rownames(impacts) %in% "pct", "d.aut"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy != "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                          "AC_COM_PV", "AC_COL_PV",
+                                                                                                          "AC_PI_PV", "AC_MR_PV",
+                                                                                                          "AC_CR_PV", "AC_IS_PV")])
+  # Upward mult
+  tmp <- Auto_Multiplier_Best
+  impacts[rownames(impacts) %in% "mult", "u.trad"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy == "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                            "AC_COM_PV", "AC_COL_PV",
+                                                                                                            "AC_PI_PV", "AC_MR_PV",
+                                                                                                            "AC_CR_PV", "AC_IS_PV")])
+  impacts[rownames(impacts) %in% "mult", "u.aut"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy != "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                           "AC_COM_PV", "AC_COL_PV",
+                                                                                                           "AC_PI_PV", "AC_MR_PV",
+                                                                                                           "AC_CR_PV", "AC_IS_PV")])
+  
+  #downward mult
+  tmp <- Auto_Multiplier_Worst
+  impacts[rownames(impacts) %in% "mult", "d.trad"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy == "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                            "AC_COM_PV", "AC_COL_PV",
+                                                                                                            "AC_PI_PV", "AC_MR_PV",
+                                                                                                            "AC_CR_PV", "AC_IS_PV")])
+  impacts[rownames(impacts) %in% "mult", "d.aut"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy != "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                           "AC_COM_PV", "AC_COL_PV",
+                                                                                                           "AC_PI_PV", "AC_MR_PV",
+                                                                                                           "AC_CR_PV", "AC_IS_PV")])
+  
+  # Upward coverage
+  tmp <- Auto_Coverage_Best
+  impacts[rownames(impacts) %in% "cov", "u.trad"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy == "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                            "AC_COM_PV", "AC_COL_PV",
+                                                                                                            "AC_PI_PV", "AC_MR_PV",
+                                                                                                            "AC_CR_PV", "AC_IS_PV")])
+  impacts[rownames(impacts) %in% "cov", "u.aut"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy != "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                           "AC_COM_PV", "AC_COL_PV",
+                                                                                                           "AC_PI_PV", "AC_MR_PV",
+                                                                                                           "AC_CR_PV", "AC_IS_PV")])
+  
+  #downward coverage
+  tmp <- Auto_Coverage_Worst
+  impacts[rownames(impacts) %in% "cov", "d.trad"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy == "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                            "AC_COM_PV", "AC_COL_PV",
+                                                                                                            "AC_PI_PV", "AC_MR_PV",
+                                                                                                            "AC_CR_PV", "AC_IS_PV")])
+  impacts[rownames(impacts) %in% "cov", "d.aut"] <- sum(tmp[tmp$time == end.time & tmp$Autonomy != "A0", c("AC_BI_PV", "AC_PD_PV",
+                                                                                                           "AC_COM_PV", "AC_COL_PV",
+                                                                                                           "AC_PI_PV", "AC_MR_PV",
+                                                                                                           "AC_CR_PV", "AC_IS_PV")])
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   # Write premiums
   
   premiums <- Base[, c("RiskClass", "Type", "Autonomy", "BI_pv_prem", "PD_pv_prem", "COM_pv_prem", "COL_pv_prem", "PI_pv_prem", "MR_pv_prem", "CR_pv_prem", "IS_pv_prem")]
@@ -239,5 +370,6 @@
   
   
   
+
   
-    
+  

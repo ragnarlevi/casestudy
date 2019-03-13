@@ -152,7 +152,7 @@ freq.loss.tidy <- function(freq.pct, loss.pct){
 
 
 
-model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia.exposure, carb.commercial.pct, carb.personal.pct, freq.pct, loss.pct, MR.fac.a2 , IS.fac.a2 , CR.fac.a2, interest, MR.fac.a1 , IS.fac.a1 , CR.fac.a1 ){
+model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia.exposure, carb.commercial.pct, carb.personal.pct, freq.pct, loss.pct, MR.fac.a2 , IS.fac.a2 , CR.fac.a2, interest, MR.fac.a1 , IS.fac.a1 , CR.fac.a1, sl.enter.year, sl.enter.qtr ){
   # time frame
   # autocar - original data frae
   # glm.list <- the glm list
@@ -183,6 +183,13 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
                             carbia.exposure = carbia.exposure, 
                             carb.commercial.pct = carb.commercial.pct, 
                             carb.personal.pct = carb.personal.pct)
+  
+  # We need to remove set exposure to zero if safelife has not entered the market
+  
+  exposure$Exposure[exposure$Year < sl.enter.year & exposure$Autonomy != "A0"] <- 0
+  # and then remove Quarter
+  exposure$Exposure[exposure$Year == sl.enter.year & exposure$Qtr < sl.enter.qtr & exposure$Autonomy != "A0"] <- 0
+  
   
 
   
@@ -458,6 +465,17 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   predict.df$AAC_COL_PV <- predict.df$AAC_COL/predict.df$pv_factor
   predict.df$AAC_PI_PV <- predict.df$AAC_PI/predict.df$pv_factor
   
+  
+  # Calculate Premiums
+  predict.df$BI_pv_prem <- predict.df$AC_BI_PV/predict.df$Exposure
+  predict.df$PD_pv_prem <- predict.df$AC_PD_PV/predict.df$Exposure
+  predict.df$COM_pv_prem <- predict.df$AC_COM_PV/predict.df$Exposure
+  predict.df$COL_pv_prem <- predict.df$AC_COL_PV/predict.df$Exposure
+  predict.df$PI_pv_prem <- predict.df$AC_PI_PV/predict.df$Exposure
+  predict.df$MR_pv_prem <- predict.df$AC_MR_PV/predict.df$Exposure
+  predict.df$CR_pv_prem <- predict.df$AC_CR_PV/predict.df$Exposure
+  predict.df$IS_pv_prem <- predict.df$AC_IS_PV/predict.df$Exposure
+  
   return(predict.df)
   
 }
@@ -581,5 +599,696 @@ riskClassProp <- function(df.main, time.frame, start.year = 2019, lvls){
   
 }
 
+
+
+plot.main <- function(predict.df){
+  
+  # Descriptve plots
+  # Exposure
+  tmp <- predict.df[predict.df$time<= 2019, c("time", "Exposure", "Type")]
+  tmp <- aggregate(. ~ time + Type, data = tmp, FUN = sum)
+  
+  exposure.descriptive <- ggplot() + 
+    geom_line(data = tmp, mapping = aes(x = time, y = Exposure , color = Type), size = 2) + 
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 5.5, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)))+
+    scale_y_continuous(expand = c(0,0), 
+                       name = "Car years of exposure in thousands", 
+                       breaks = c(0, 100000, 200000, 300000, 400000, 500000),
+                       labels = c("0", "100", "200", "300", "400", "500"),
+                       limits = c(0, 500000)) +
+    scale_x_continuous(expand = c(0,0), 
+                       name = "Year",
+                       breaks = c(2009:2019),
+                       labels = c(2009:2019),
+                       limit = c(2009,2019.25)) +
+    scale_color_manual(values = c("Commercial" = "#004F71", "Personal" =  "#8DC8E8")) +
+    ggtitle("Safelife's historical exposure")
+  
+  ggsave("graphs/exposure_descriptive.png", device = "png",plot = exposure.descriptive, width = 60, height = 20, units = "cm")
+  
+  
+  
+  # AC per coverage
+  
+  tmp <- predict.df[predict.df$time<= 2019, c("time", "Type", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV")]
+  
+  tmp <- aggregate(. ~ time + Type, data = tmp, FUN = sum)
+  tmp.melt <- melt(tmp, id.vars = c("time", "Type"))
+  
+  
+  ac.descriptive <- ggplot() + 
+    geom_bar(data = tmp.melt, 
+             mapping = aes(x = time, y = value, fill = variable),
+             stat = "identity", 
+             position = "stack",
+             width = 0.19) +
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5))) + 
+    scale_y_continuous(expand = c(0,0), 
+                       name = "Total loss in millions", 
+                       breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)*10^(9),
+                       labels = c("0", "200", "400", "600", "800", "1000"),
+                       limits = c(0, 1000000000)) +
+    scale_x_continuous(expand = c(0,0), 
+                       name = "Year",
+                       breaks = c(2010, 2012, 2014, 2016, 2018),
+                       labels = c("2010", "2012", "2014", "2016", "2018"),
+                       limit = c(2009,2019))+
+    ggtitle("Total claim amount (present value)") +
+    facet_wrap(. ~ Type) + 
+    labs(fill = "Coverage\n")+
+    scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31"),
+                      labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI"))
+  
+  ggsave("graphs/claimamount_descriptive.png", device = "png",plot = ac.descriptive, width = 60, height = 20, units = "cm")
+  
+  # NC per coverage
+  
+  tmp <- predict.df[predict.df$time<= 2019, c("time", "Type", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")]
+  tmp <- aggregate(. ~ time + Type, data = tmp, FUN = sum)
+  tmp.melt <- melt(tmp, id.vars = c("time", "Type"))
+  nc.descriptive <- ggplot() + 
+    geom_bar(data = tmp.melt, 
+             mapping = aes(x = time, y = value, fill = variable),
+             stat = "identity", 
+             position = "stack",
+             width = 0.19) +
+    theme_bw(base_size = 17) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5))) + 
+    scale_y_continuous(expand = c(0,0), 
+                       name = "Number of claims in thousands", 
+                       breaks = c(0, 100000, 200000, 300000),
+                       labels = c("0", "100", "200", "300"),
+                       limits = c(0, 300000)) +
+    scale_x_continuous(expand = c(0,0), 
+                       name = "Year",
+                       breaks = c(2009:2019),
+                       labels = c(2009:2019),
+                       limit = c(2009,2019.25)) +
+    ggtitle("Claim frequency") +
+    facet_wrap(. ~ Type) + 
+    labs(fill = "Coverage\n")+
+    scale_fill_manual(values = c("NC_BI" = "#D9E1E2", "NC_PD" = "#BBDDE6"  ,"NC_COM" = "#71B2C9", "NC_COL" = "#4E87A0","NC_PI" = "#072B31"),
+                      labels = c("NC_BI" = "BI", "NC_PD" = "PD","NC_COM" =  "COM","NC_COL" =  "COL","NC_PI" =  "PI"))
+  
+  ggsave("graphs/frequency_descriptive.png", device = "png",plot = nc.descriptive, width = 60, height = 20, units = "cm")
+  
+  
+  # Exposure groth, Autonomy levels included
+  tmp <- predict.df[, c("time", "Exposure", "Type", "Autonomy")]
+  tmp <- aggregate(. ~ time + Type + Autonomy, data = tmp, FUN = sum)
+  tmp$Autonomy <- factor(tmp$Autonomy, levels = c("A0", "A1", "A2"), ordered = T)
+  tmp <- tmp[order(tmp$Autonomy, decreasing = T),]
+  tmp.1 <- tmp[tmp$time <= 2019,]
+  tmp.2 <- tmp[tmp$time > 2019,]
+  
+  exposure.growth <- ggplot() + 
+    geom_bar(data = tmp.1, mapping = aes(x = time, y = Exposure, fill = Autonomy, group = Type) , 
+             stat = "identity", 
+             position = "stack",
+             width = 0.15,
+             alpha = 1) +
+    geom_bar(data = tmp.2, mapping = aes(x = time, y = Exposure, fill = Autonomy, group = Type) , 
+             stat = "identity", 
+             position = "stack", 
+             width = 0.15,
+             alpha = 1) +
+    facet_wrap(. ~ Type) + 
+    scale_fill_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8")) + 
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          panel.spacing = unit(1, "cm")) + 
+    scale_y_continuous(expand = c(0,0), 
+                       name = "Exposure in thousands", 
+                       breaks = c(0, 100000, 200000, 300000, 400000, 500000, 600000, 700000),
+                       labels = c("0", "100", "200", "300", "400", "500", "600", "700"),
+                       limits = c(0, 700000)) +
+    scale_x_continuous(expand = c(0,0), 
+                       name = "Year") +
+    ggtitle("Safelife`s exposure") +
+    labs(fill = "Levels")
+  
+  ggsave("graphs/exposure_growth.png", device = "png",plot = exposure.growth, width = 60, height = 20, units = "cm")
+  
+  
+  
+  # Total Claim amount and only A1 and A2
+  tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]
+  tmp.A1andA2 <- tmp[tmp$Autonomy != "A0",]
+  
+  # Add as Column
+  tmp$Case <- "Total"
+  tmp.A1andA2$Case <- "A1 and A2"
+  
+  # combine
+  tmp <- rbind(tmp, tmp.A1andA2)
+  # Remove Autonomy
+  tmp <- tmp[, !(names(tmp) %in% "Autonomy")]
+  # aggregate
+  tmp <- aggregate(. ~ time + Case, data = tmp, FUN = sum)
+  
+  tmp.melt <- melt(data = tmp, id = c("time", "Case"))
+  
+  #Plot: predicted total claim amount (present value) *new plot*
+  totalclaim.comparison <- ggplot(data = tmp.melt) + 
+    geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+    ggtitle("Expected total loss") + 
+    scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
+                       breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
+                       labels = seq(from=0,to=1.800,by=0.100), 
+                       expand = c(0,0),
+                       limits = c(0, 1.8)*10^9) + 
+    scale_x_continuous(name = "Year", expand = c(0,0)) +
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          panel.spacing = unit(1,"cm")) + 
+    labs(fill = "Coverage")+
+    facet_wrap(. ~ Case) + 
+    scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31", "AC_MR_PV" = "#D45D00", "AC_CR_PV" = "#FDBE87", "AC_IS_PV" = "#F68D2E"),
+                      labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI","AC_MR_PV" =  "MR","AC_CR_PV" =  "CR","AC_IS_PV" =  "IR"))
+  
+  
+  ggsave("graphs/total_claim_comparison.png", device = "png",plot = totalclaim.comparison, width = 60, height = 20, units = "cm")
+  
+  
+  # total claim 
+  tmp <- predict.df[, names(predict.df) %in% c("time", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]
+  tmp <- aggregate(. ~ time , data = tmp, FUN = sum)
+  
+  tmp.melt <- melt(data = tmp, id = c("time"))
+
+  
+  totalclaim <- ggplot(data = tmp.melt) + 
+    geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+    ggtitle("Expected total loss") + 
+    scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
+                       breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
+                       labels = seq(from=0,to=1.800,by=0.100), 
+                       expand = c(0,0),
+                       limits = c(0, 1.8)*10^9) + 
+    scale_x_continuous(name = "Year", expand = c(0,0)) +
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5))) + 
+    labs(fill = "Coverage")+
+    scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31", "AC_MR_PV" = "#D45D00", "AC_CR_PV" = "#FDBE87", "AC_IS_PV" = "#F68D2E"),
+                      labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI","AC_MR_PV" =  "MR","AC_CR_PV" =  "CR","AC_IS_PV" =  "IR"))
+  
+  ggsave("graphs/total_claim.png", device = "png",plot = totalclaim, width = 60, height = 20, units = "cm")
+  
+  
+  # NO-AV
+  tmp <- predict.df[predict.df$Autonomy == "A0", names(predict.df) %in% c("time", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV")]
+  tmp <- aggregate(. ~ time , data = tmp, FUN = sum)
+  
+  tmp.melt <- melt(data = tmp, id = c("time"))
+  
+  
+  totalclaim.NOAV <- ggplot(data = tmp.melt) + 
+    geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+    ggtitle("Expected total loss") + 
+    scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
+                       breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
+                       labels = seq(from=0,to=1.800,by=0.100), 
+                       expand = c(0,0),
+                       limits = c(0, 1.8)*10^9) + 
+    scale_x_continuous(name = "Year", expand = c(0,0)) +
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5))) + 
+    labs(fill = "Coverage")+
+    scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31"),
+                      labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI"))
+  
+  ggsave("graphs/total_claim_NO_AV.png", device = "png",plot = totalclaim.NOAV, width = 60, height = 20, units = "cm")
+  
+  
+  
+  # Premiums
+  premiums.t.pv <- predict.df[, c("time", "RiskClass", "Type", "Autonomy", 
+                            "BI_pv_prem","PD_pv_prem", "COM_pv_prem", "COL_pv_prem",
+                            "PI_pv_prem", "MR_pv_prem", "CR_pv_prem", "IS_pv_prem")]
+  
+  premiums.t.pv <- aggregate(. ~ time + RiskClass + Type + Autonomy, data = premiums.t.pv, FUN = sum )
+  
+  tmp <- premiums.t.pv[, !(names(premiums.t.pv) %in% c( "RiskClass", "Type"))]
+  tmp <- aggregate(. ~ time + Autonomy, data = tmp, FUN = mean)
+  tmp.melt <- melt(tmp, id.vars = c("time", "Autonomy"))
+  
+
+  premiums <- ggplot() + 
+    geom_line(data = tmp.melt, mapping = aes(x = time, y = value, color = variable), size = 1.1) +
+    facet_wrap(. ~ Autonomy, scales = "fixed")+
+    theme_bw(base_size = 16) +
+    scale_color_manual(values = c("BI_pv_prem" = "#D9E1E2", "PD_pv_prem" = "#BBDDE6"  ,"COM_pv_prem" = "#71B2C9", "COL_pv_prem" = "#4E87A0","PI_pv_prem" = "#072B31", "MR_pv_prem" = "#D45D00", "CR_pv_prem" = "#FDBE87", "IS_pv_prem" = "#F68D2E"),
+                       labels = c("BI_pv_prem" = "BI", "PD_pv_prem" = "PD","COM_pv_prem" =  "COM", "COL_pv_prem" =  "COL","PI_pv_prem" =  "PI","MR_pv_prem" =  "MR","CR_pv_prem" =  "CR","IS_pv_prem" =  "IR"))+
+    theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
+          axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0)), 
+          #  legend.position = c(0.85, 0.2) ,
+          panel.spacing = unit(2, "lines"),
+          plot.margin = unit(c(0.3,0.8,0.3,1), "cm")) + 
+    scale_y_continuous(expand = c(0,0),
+                       name = TeX("Premiums in  $\\hat{C}$"),
+                       breaks = seq(0, 8, by = 1)*100,
+                       labels = seq(0, 8, by = 1)*100,
+                       limits = c(0, 800)) +
+    scale_x_continuous(expand = c(0,0), 
+                       name = "Year",
+                       breaks = seq(2010, 2030, by = 5),
+                       labels = seq(2010, 2030, by = 5),
+                       limit = c(2009,2030.25)) +
+    ggtitle("Average Discounted Premiums")+
+    labs(color = "Coverage")
+  
+  
+  ggsave("graphs/premiums_pv_mean.png", device = "png",plot = premiums, width = 60, height = 20, units = "cm")
+  
+  
+  # Proportions plot
+  tmp <- predict.df[, c("time", "RiskClass", "prop", "Type", "Autonomy")]
+  
+  prop.plot <- ggplot(data = tmp)+ 
+    geom_line(mapping = aes(x = time, y = prop, color = RiskClass)) + facet_wrap(. ~ Type + Autonomy, scales = "free")+
+    scale_y_continuous(expand = c(0,0),
+                       name = "Percentage") +
+    scale_x_continuous(expand = c(0,0), 
+                       name = "Year") 
+  
+  ggsave("graphs/prop_plot.png", device = "png",plot = prop.plot, width = 60, height = 20, units = "cm")
+    
+  
+}
+
+
+plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp.pct, A2.hit.time){
+  
+  # All Scenarios COMBINED
+  # Next we safe plots, a folder called graph is needed in the working directory
+  
+  
+  tmp.history.pv <- history[, c("time", "Case", "Scenario", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")]
+  tmp.all.pv <- all[, c("time", "Case", "Scenario", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")]
+  
+  
+  tmp.history.pv <- cbind(tmp.history.pv[, c("time", "Case", "Scenario")], rowSums(tmp.history.pv[, c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")]))
+  tmp.all.pv <- cbind(tmp.all.pv[, c("time", "Case", "Scenario")], rowSums(tmp.all.pv[, c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")]))
+  
+  names(tmp.history.pv) <- c("time", "Case", "Scenario", "PurePremium")
+  names(tmp.all.pv) <- c("time", "Case", "Scenario", "PurePremium")
+  
+  
+  tmp.all.pv <- aggregate(. ~ time + Scenario+ Case, data = tmp.all.pv, FUN = sum)
+  tmp.history.pv <- aggregate(. ~ time + Scenario + Case, data = tmp.history.pv, FUN = sum)
+  # 
+  # tmp.pv <- rbind(tmp.all.pv, tmp.history.pv)
+  # 
+  # tmp.all.pv$Scenario <- factor(tmp.all.pv$Scenario,
+  #                               levels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "Combined"),
+  #                               ordered = T)
+  # tmp.all.pv <- tmp.all.pv[order(tmp.all.pv$Scenario),]
+  # 
+  # tmp.history.pv$Scenario <- factor(tmp.history.pv$Scenario,
+  #                                   levels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "Combined"),
+  #                                   ordered = T)
+  # tmp.history.pv <- tmp.history.pv[order(tmp.history.pv$Scenario),]
+  # 
+  # tmp.all.pv$Scenario2 <- factor(tmp.all.pv$Scenario, 
+  #                                labels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "bold(Combined)"))
+  # 
+  # tmp.history.pv$Scenario2 <- factor(tmp.history.pv$Scenario, 
+  #                                    labels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "bold(Combined)"))
+  # 
+  
+  # We dont want to display Combined
+  tmp.all.pv <- tmp.all.pv[tmp.all.pv$Scenario != "Combined",]
+  tmp.history.pv <- tmp.history.pv[tmp.history.pv$Scenario != "Combined",]
+  
+  p.pv <-  ggplot() + 
+    facet_wrap(. ~ Scenario, scales = "free_x")+
+    geom_ribbon(data = dcast(tmp.all.pv, time + Scenario ~  Case, value.var = "PurePremium"), mapping = aes(x = time, ymin = Downward,  ymax = Upward), alpha = 0.8, fill = "#6191B4")+
+    geom_line(data = tmp.all.pv, mapping = aes(x = time, y = PurePremium, color = Case), size = 1.1) +
+    geom_line(data = tmp.history.pv, mapping = aes(x = time, y = PurePremium, color = Case), size = 1.1 ) +
+    theme_bw(base_size = 16) +
+    scale_color_manual(values = c("Base" = "#004680", "Upward" = "#4B82A8", "Downward" = "#4B82A8"))+
+    theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
+          axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0)), 
+          panel.spacing = unit(2, "lines"),
+          plot.margin = unit(c(0.3,0.8,0.3,1), "cm")) + 
+    scale_y_continuous(expand = c(0,0), 
+                       name = TeX("Loss in billions  $\\hat{C}$") , 
+                       breaks = seq(0, 2.2, by = 0.2)*10^(9),
+                       labels = seq(0, 2.2, by = 0.2),
+                       limits = c(0, 2200000000)) +
+    scale_x_continuous(expand = c(0,0), 
+                       name = "Year",
+                       breaks = seq(2010, 2030, by = 5),
+                       labels = seq(2010, 2030, by = 5),
+                       limit = c(2009,2030)) +
+    ggtitle("Total loss scenarios")
+
+  ggsave("graphs/totalloss_scenarios.png", device = "png",plot = p.pv, width = 60, height = 20, units = "cm")
+  
+  
+# Plot marketshare Scenarios
+
+  # We dont want to plot  A2 when is not in the market
+  tmp <- safelife.ms
+  tmp$A2[tmp$time< A2.hit.time ] <- NA
+  
+  tmp$Case <- factor(tmp$Case, levels = c("Downward", "Base", "Upward"), ordered = T)
+  tmp <- tmp[order(tmp$Case),]
+  
+  m.safe <- melt(data = tmp, id = c("time", "Case"))
+  
+  safelife.ms.scenarios <- ggplot() + geom_line( data = m.safe,mapping = aes(x = time, y = value, color = variable), size = 1.1) + 
+    scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=2), label = as.character(2019 + seq(from=0,to=20,by=2)), expand = c(0,0)) +
+    scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1.02), expand = c(0,0)) + # expand -> y axis begins at 0 strict
+    theme_bw(base_size = 20) +
+    scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8"))+
+    theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
+          axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0))) +
+    labs(color = "Level") + ggtitle("Safelife's market share per autonomy level")   +
+    facet_wrap(. ~ Case, scales = "free")
+  
+  ggsave("graphs/safelife_ms_shocks.png", device = "png",plot = safelife.ms.scenarios, width = 40, height = 20, units = "cm")
+  
+  # Do the same but only base
+  tmp <- safelife.ms[safelife.ms$Case == "Base", c("time", "A0", "A1", "A2")]
+  tmp$A2[tmp$time< A2.hit.time ] <- NA
+  
+  m.safe <- melt(data = tmp, id = c("time"))
+  
+  safelife.ms.base <- ggplot() + geom_line( data = m.safe ,mapping = aes(x = time, y = value, color = variable), size = 1.1) + 
+    scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=2), label = as.character(2019 + seq(from=0,to=20,by=2)), expand = c(0,0)) +
+    scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1.02), expand = c(0,0)) + # expand -> y axis begins at 0 strict
+    theme_bw(base_size = 20) +
+    scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8"))+
+    theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
+          axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0))) +
+    labs(color = "Level") + ggtitle("Safelife's market share per autonomy level")
+  
+  
+  ggsave("graphs/safelife_ms_base.png", device = "png",plot = safelife.ms.base, width = 40, height = 20, units = "cm")
+  
+  # Plot for Commercial and Personal exposure percentage
+  
+  tmp <- carb.c.exp.pct
+  
+  tmp$Case <- factor(tmp$Case, levels = c("Downward", "Base", "Upward"), ordered = T)
+  tmp <- tmp[order(tmp$Case),]
+  
+  m.carb <- melt(data = tmp, id.vars = c("time","Case"))
+  m.carb$value[m.carb$variable == "A2" & m.carb$value == 0] <- NA
+  
+  c.exp.carb.graph <- ggplot() + geom_line( data = m.carb,mapping = aes(x = time, y = value, color = variable), size = 1.1) + 
+    scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=2), label = as.character(2019 + seq(from=0,to=20,by=2)), expand = c(0,0)) +
+    scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1), expand = c(0,0)) + # expand -> y axis begins at 0 strict
+    theme_bw(base_size = 20) +
+    scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8"))+
+    theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
+          axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0))) +
+    labs(color = "Level") + ggtitle("Proportion of exposure per autonomy level for personal vehicles")  +
+    facet_wrap(. ~ Case, scales = "free")
+  
+  ggsave("graphs/commercial_exposure_pct.png", device = "png",plot = c.exp.carb.graph, width = 60, height = 20, units = "cm")
+  
+  tmp <- carb.p.exp.pct
+  tmp$Case <- factor(tmp$Case, levels = c("Downward", "Base", "Upward"), ordered = T)
+  tmp <- tmp[order(tmp$Case),]
+  
+  m.carb <- melt(data = tmp, id.vars = c("time","Case"))
+  m.carb$value[m.carb$variable == "A2" & m.carb$value == 0] <- NA
+  
+  p.exp.carb.graph <- ggplot() + geom_line( data = m.carb,mapping = aes(x = time, y = value, color = variable), size = 1.1) + 
+    scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=2), label = as.character(2019 + seq(from=0,to=20,by=2)), expand = c(0,0)) +
+    scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1), expand = c(0,0)) + # expand -> y axis begins at 0 strict
+    theme_bw(base_size = 20) +
+    scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8"))+
+    theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
+          axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0))) +
+    labs(color = "Level") + ggtitle("Proportion of exposure per autonomy level for commercial vehicles")   +
+    facet_wrap(. ~ Case, scales = "free")
+  
+  ggsave("graphs/personal_exposure_pct.png", device = "png",plot = p.exp.carb.graph, width = 60, height = 20, units = "cm")
+  
+  # Cobine into one
+  
+   carb.p.exp.pct$Type <- "Personal"
+   carb.c.exp.pct$Type <- "Commercial"
+   
+   tmp <- rbind(carb.p.exp.pct, carb.c.exp.pct)
+   tmp$Case <- factor(tmp$Case, levels = c("Downward", "Base", "Upward"), ordered = T)
+   tmp <- tmp[order(tmp$Case),]
+   
+   m.carb <- melt(data = tmp, id.vars = c("time","Case", "Type"))
+   m.carb$value[m.carb$variable == "A2" & m.carb$value == 0] <- NA
+   
+   exp.carb.graph <- ggplot() + geom_line( data = m.carb,mapping = aes(x = time, y = value, color = variable), size = 1.1) + 
+     scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=2), label = as.character(2019 + seq(from=0,to=20,by=2)), expand = c(0,0)) +
+     scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1), expand = c(0,0)) + # expand -> y axis begins at 0 strict
+     theme_bw(base_size = 17) +
+     scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8"))+
+     theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+           axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
+           axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0)),
+           strip.text = element_text(size=12)) +
+     labs(color = "Level") + ggtitle("Proportion of exposure per autonomy level")    +
+     facet_wrap(. ~ Type + Case, scales = "free") 
+   
+   ggsave("graphs/exposure_pct_pandc.png", device = "png",plot = exp.carb.graph, width = 60, height = 20, units = "cm")
+   
+   
+   # Do the same bust only Base
+   tmp <- rbind(carb.p.exp.pct, carb.c.exp.pct)
+   tmp <- tmp[tmp$Case =="Base", c("time", "A0", "A1", "A2", "Type")] 
+   m.tmp <- melt(data = tmp, id.vars = c("time", "Type"))
+   m.tmp$value[m.tmp$variable == "A2" & m.tmp$value == 0] <- NA
+   
+   exp.carb.graph.base <- ggplot() + geom_line( data = m.tmp,mapping = aes(x = time, y = value, color = variable), size = 1.1) + 
+     scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=2), label = as.character(2019 + seq(from=0,to=20,by=2)), expand = c(0,0)) +
+     scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1), expand = c(0,0)) + # expand -> y axis begins at 0 strict
+     theme_bw(base_size = 17) +
+     scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8"))+
+     theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+           axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
+           axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0)),
+           strip.text = element_text(size=12)) +
+     labs(color = "Level") + ggtitle("Proportion of exposure per autonomy level")    +
+     facet_wrap(. ~ Type, scales = "free") 
+   
+   ggsave("graphs/exposure_pct_pandc_base.png", device = "png",plot = exp.carb.graph.base, width = 60, height = 20, units = "cm")
+   
+   
+   
+  
+  # Combine all and history into one data frame
+  
+  # Both include the year 2019! But History does not have Case Down and Up
+  # Add history to the cases Down and up Also
+  history.up <- history
+  history.up$Case <- "Upward"
+  
+  history.down <- history
+  history.down$Case <- "Downward"
+  all.comb <- rbind(history, all[all$time != 2019, ], history.down, history.up)
+  
+  # Autonomous vehicle percentage
+  
+  tmp <- all.comb[all.comb$Scenario == "Autonomous % of Carbia", names(all.comb) %in% c("time", "Case", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]
+  tmp$Case <- factor(tmp$Case, levels = c("Downward", "Base", "Upward"), ordered = T)
+  tmp <- tmp[order(tmp$Case),]
+  tmp <- aggregate(. ~ time + Case , data = tmp, FUN = sum)
+  
+  tmp.melt <- melt(data = tmp, id = c("time", "Case"))
+  
+  
+  totalclaim.pct <- ggplot(data = tmp.melt) + 
+    geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+    ggtitle("Expected total loss shocking autonomous % of Carbia") + 
+    scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
+                       breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
+                       labels = seq(from=0,to=1.800,by=0.100), 
+                       expand = c(0,0),
+                       limits = c(0, 1.8)*10^9) + 
+    scale_x_continuous(name = "Year", expand = c(0,0)) +
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          panel.spacing = unit(1,"cm")) + 
+    labs(fill = "Coverage") +
+    facet_wrap(. ~ Case) +
+    scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31", "AC_MR_PV" = "#D45D00", "AC_CR_PV" = "#FDBE87", "AC_IS_PV" = "#F68D2E"),
+                      labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI","AC_MR_PV" =  "MR","AC_CR_PV" =  "CR","AC_IS_PV" =  "IS"))
+  
+  ggsave("graphs/totalclaim_pct_shocks.png", device = "png",plot = totalclaim.pct, width = 60, height = 20, units = "cm")
+  
+  # Coverage shock
+  tmp <- all.comb[all.comb$Scenario == "Coverage", names(all.comb) %in% c("time", "Case", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]
+  tmp$Case <- factor(tmp$Case, levels = c("Downward", "Base", "Upward"), ordered = T)
+  tmp <- tmp[order(tmp$Case),]
+  tmp <- aggregate(. ~ time + Case , data = tmp, FUN = sum)
+  
+  tmp.melt <- melt(data = tmp, id = c("time", "Case"))
+  
+  
+  totalclaim.coverage <- ggplot(data = tmp.melt) + 
+    geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+    ggtitle("Expected total loss shocking new coverage") + 
+    scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
+                       breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
+                       labels = seq(from=0,to=1.800,by=0.100), 
+                       expand = c(0,0),
+                       limits = c(0, 1.8)*10^9) + 
+    scale_x_continuous(name = "Year", expand = c(0,0)) +
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          panel.spacing = unit(1,"cm")) + 
+    labs(fill = "Coverage") +
+    facet_wrap(. ~ Case) +
+    scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31", "AC_MR_PV" = "#D45D00", "AC_CR_PV" = "#FDBE87", "AC_IS_PV" = "#F68D2E"),
+                      labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI","AC_MR_PV" =  "MR","AC_CR_PV" =  "CR","AC_IS_PV" =  "IS"))
+  
+  ggsave("graphs/totalclaim_coverage_shocks.png", device = "png",plot = totalclaim.coverage, width = 60, height = 20, units = "cm")
+  
+  
+  # Multipliers shock
+  tmp <- all.comb[all.comb$Scenario == "Frequency and amount", names(all.comb) %in% c("time", "Case", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]
+  tmp$Case <- factor(tmp$Case, levels = c("Downward", "Base", "Upward"), ordered = T)
+  tmp <- tmp[order(tmp$Case),]
+  tmp <- aggregate(. ~ time + Case , data = tmp, FUN = sum)
+  
+  tmp.melt <- melt(data = tmp, id = c("time", "Case"))
+  
+  
+  totalclaim.mult <- ggplot(data = tmp.melt) + 
+    geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+    ggtitle("Expected total loss shocking frequency and amount") + 
+    scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
+                       breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
+                       labels = seq(from=0,to=1.800,by=0.100), 
+                       expand = c(0,0),
+                       limits = c(0, 1.8)*10^9) + 
+    scale_x_continuous(name = "Year", expand = c(0,0)) +
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          panel.spacing = unit(1,"cm")) + 
+    labs(fill = "Coverage") +
+    facet_wrap(. ~ Case) +
+    scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31", "AC_MR_PV" = "#D45D00", "AC_CR_PV" = "#FDBE87", "AC_IS_PV" = "#F68D2E"),
+                      labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI","AC_MR_PV" =  "MR","AC_CR_PV" =  "CR","AC_IS_PV" =  "IS"))
+  
+  ggsave("graphs/totalclaim_multipliers_shocks.png", device = "png",plot = totalclaim.mult, width = 60, height = 20, units = "cm")
+  
+  
+  # Safelife marketshare shock
+  tmp <- all.comb[all.comb$Scenario == "Safelife Marketshare", names(all.comb) %in% c("time", "Case", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]
+  tmp$Case <- factor(tmp$Case, levels = c("Downward", "Base", "Upward"), ordered = T)
+  tmp <- tmp[order(tmp$Case),]
+  tmp <- aggregate(. ~ time + Case , data = tmp, FUN = sum)
+  
+  tmp.melt <- melt(data = tmp, id = c("time", "Case"))
+  
+  
+  totalclaim.ms <- ggplot(data = tmp.melt) + 
+    geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+    ggtitle("Expected total loss shocking safelife's market share") + 
+    scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
+                       breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
+                       labels = seq(from=0,to=1.800,by=0.100), 
+                       expand = c(0,0),
+                       limits = c(0, 1.8)*10^9) + 
+    scale_x_continuous(name = "Year", expand = c(0,0)) +
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          panel.spacing = unit(1,"cm")) + 
+    labs(fill = "Coverage") +
+    facet_wrap(. ~ Case) +
+    scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31", "AC_MR_PV" = "#D45D00", "AC_CR_PV" = "#FDBE87", "AC_IS_PV" = "#F68D2E"),
+                      labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI","AC_MR_PV" =  "MR","AC_CR_PV" =  "CR","AC_IS_PV" =  "IS"))
+  
+  ggsave("graphs/totalclaim_ms_shocks.png", device = "png",plot = totalclaim.ms, width = 60, height = 20, units = "cm")
+  
+  # Combined shock
+  tmp <- all.comb[all.comb$Scenario == "Combined", names(all.comb) %in% c("time", "Case", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]
+  
+  tmp <- aggregate(. ~ time + Case , data = tmp, FUN = sum)
+  
+  tmp.melt <- melt(data = tmp, id = c("time", "Case"))
+  
+  
+  totalclaim.comb <- ggplot(data = tmp.melt) + 
+    geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+    ggtitle("Expected total loss shocks combined") + 
+    scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
+                       breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
+                       labels = seq(from=0,to=1.800,by=0.100), 
+                       expand = c(0,0),
+                       limits = c(0, 1.8)*10^9) + 
+    scale_x_continuous(name = "Year", expand = c(0,0)) +
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          panel.spacing = unit(1,"cm")) + 
+    labs(fill = "Coverage") +
+    facet_wrap(. ~ Case) +
+    scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31", "AC_MR_PV" = "#D45D00", "AC_CR_PV" = "#FDBE87", "AC_IS_PV" = "#F68D2E"),
+                      labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI","AC_MR_PV" =  "MR","AC_CR_PV" =  "CR","AC_IS_PV" =  "IS"))
+  
+  ggsave("graphs/totalclaim_combined_shocks.png", device = "png",plot = totalclaim.comb, width = 60, height = 20, units = "cm")
+  
+  
+  
+}
 
 

@@ -7,19 +7,7 @@ safelife.market.share <- data.frame(time = t,
                                     A1 = A1,
                                     A2 = A2)
 
-m.safe <- melt(data = safelife.market.share, id = "time")
 
-ggplot(data = m.safe) + geom_line(mapping = aes(x = time, y = value, color = variable)) + 
-  scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=5), label = as.character(2019 + seq(from=0,to=20,by=5)), expand = c(0,0)) +
-  scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1), expand = c(0,0)) + # expand -> y axis begins at 0 strict
-  theme(axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        plot.background = element_blank(),
-        panel.background = element_blank(),
-        legend.background = element_blank()) +
-  labs(color = "Autonomy") + ggtitle("Safelife marketshare for each autonomy level") 
 
 ## Carbia personal percentages
 A1 <- function(t){
@@ -48,21 +36,6 @@ carb.personal.pct <- data.frame(time = t,
                                 A1 = A1(t),
                                 A2 = A2(t))
 
-m.carb <- melt(data = carb.personal.pct, id.vars = "time")
-m.carb$value[m.carb$variable == "A2" & m.carb$value == 0] <- NA
-
-
-ggplot(data = m.carb) + geom_line(mapping = aes(x = time, y = value, color = variable)) + 
-  scale_x_continuous(name ="Year", breaks = c(time.frame), label = as.character(2019 + time.frame)) +
-  scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1)) +
-  theme(axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) +
-  labs(color = "Autonomy") + ggtitle("Personal autonomy level proportions in Carbia")
-
-# fix axisx position
 
 
 A1 <- function(t){
@@ -89,25 +62,18 @@ carb.commercial.pct <- data.frame(time = t,
                                   A1 = A1(t),
                                   A2 = A2(t))
 
-m.carb <- melt(data = carb.commercial.pct, id.vars = "time")
-m.carb$value[m.carb$variable == "A2" & m.carb$value == 0] <- NA
-#m.carb$variable <- factor(m.carb$variable, levels = c("A2", "A1", "A0"), ordered = T)
-
-#ggplot(data = m.carb) + geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity") + 
-# scale_fill_manual(values=c("#027984", "#0d0284", "#0755c1"))
-ggplot(data = m.carb) + geom_line(mapping = aes(x = time, y = value, color = variable)) + 
-  scale_x_continuous(name ="Year", breaks = c(time.frame), label = as.character(2019 + time.frame)) +
-  scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1)) +
-  theme(axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) +
-  labs(color = "Autonomy") + ggtitle("Commercial autonomy level proportions in Carbia")
 
 
-# change to millions 
+### Exposure of Personal and Commermcial
+mark.share.p <- 0.34
+mark.share.c <- 0.34
 
+personal.exposure <- sum(autocar$Exposure[autocar$Year == 2018 & autocar$Qtr == 4 & autocar$Type == "Personal"])/mark.share.p
+commercial.exposure <- sum(autocar$Exposure[autocar$Year == 2018 & autocar$Qtr == 4 & autocar$Type == "Commercial"])/mark.share.c 
+
+carbia.exposure <- data.frame(time = t,
+                              Personal = personal.exposure*(1+t*0.005),
+                              Commercial = commercial.exposure*(1+0.025)^t)
 
 # Define as lists, same names 
 freq.pct <- list()
@@ -171,4 +137,6 @@ combine_Worst <- model.2(time.frame = time.frame[1:(length(time.frame)-1)], auto
                          safelife.market.share = safelife.market.share, carbia.exposure = carbia.exposure, carb.commercial.pct = carb.commercial.pct, 
                          carb.personal.pct = carb.personal.pct, freq.pct = freq.pct, loss.pct = loss.pct, 
                          MR.fac.a1 = 0.0255/3, IS.fac.a1 = 0.0127/3, CR.fac.a1 = 0.0464/3, interest = mean_i,
-                         MR.fac.a2 = 0.0255/3, IS.fac.a2 = 0.0127/3, CR.fac.a2 = 0.0764/3) 
+                         MR.fac.a2 = 0.0255/3, IS.fac.a2 = 0.0127/3, CR.fac.a2 = 0.0764/3,
+                         sl.enter.year = sl.enter.year, 
+                         sl.enter.qtr = sl.enter.qtr) 

@@ -1,10 +1,12 @@
   
-  library(readxl) # read exlce
-  library(dplyr) # For table manipulations
-  library(plyr) # For table manipulations
-  library(reshape2) # For melt function to chane data frames to parse into ggplot functions
-  library(ggplot2) # For Nice plots
+  library(readxl) # read exel
+  library(dplyr) # For table/df manipulations
+  library(plyr) # For table/df manipulations
+  library(reshape2) # For melt function to change data frames to parse into ggplot functions
+  library(ggplot2) # For Nice plots 
   library(tidyr) # spread function
+  library(latex2exp) # to use latex in plots
+  library(xlsx) # used to write to excel
   
   
   # General functions call
@@ -17,36 +19,91 @@
   time.frame <- 0:11
   start.year <- 2019
   t <- seq(min(time.frame), max(time.frame), by = 0.25)
+  sl.enter.year = 2020; sl.enter.qtr = 1
   
+  # Base is the base case
   source("Base.R")
-
+  # we want to plot the Base Case, Base is the name of the data frame wit all the info, A folder caleld graph is needed in the
+  # working directory!
+  # View(Base[Base$Exposure == 0, c("time", "Exposure", "Autonomy")])
+  plot.main(predict.df = Base)
+  
+  # Exposure percentage, of autonomy in afater 2030
+  end.year <- max(Base$time)
+  sum(Base$Exposure[Base$Autonomy != "A0" & Base$time == end.year])/sum(Base$Exposure[Base$time == end.year])
+  
+  
+  # We want to safe the Scenarios so we can plot them later. The following is not the best way but we don't want to make to many changes
+  # to the code at this stage so we do it the brute force way. The following Scripts (and the Base.R) create data frames with the shock
+  # info. We will keep the shocks in data frames and we make a column specifying the shok
+  
+  # Create the shock data frames. 
+  
+  # safelife marketshare data frame
+  safelife.ms <- safelife.market.share
+  safelife.ms$Case <- "Base"
+  
+  # Carbia Autonomous vehicle percentage of Exposure for personal
+  carb.p.exp.pct <- carb.personal.pct
+  carb.p.exp.pct$Case <- "Base"
+  
+  
+  # Carbia Autonomous vehicle percentage of Exposure for commercial
+  carb.c.exp.pct <- carb.commercial.pct
+  carb.c.exp.pct$Case <- "Base"
+  
+  
+  
+  
+  
+  
   source("Auto_Autonomous_Vehicle_Percentage_Best.R")
   Auto_Exposure_pct_Best$Scenario <- "Autonomous % of Carbia"
-  Auto_Exposure_pct_Best$Case <- "Best"
+  Auto_Exposure_pct_Best$Case <- "Upward"
   Base_Exp_pct <- Base
   Base_Exp_pct$Scenario <-  "Autonomous % of Carbia"
   Base_Exp_pct$Case <- "Base"
   
+  # Here we have the upward shock for Autonomous vehicle percentage of Exposure
+  carb.commercial.pct$Case <- "Upward"
+  carb.c.exp.pct <- rbind(carb.c.exp.pct, carb.commercial.pct)
+  carb.personal.pct$Case <- "Upward"
+  carb.p.exp.pct <- rbind(carb.p.exp.pct, carb.personal.pct)
+  
+  # Exposure percentage, of autonomy in end.year
+  tmp <- Auto_Exposure_pct_Best
+  sum(tmp$Exposure[tmp$Autonomy != "A0" & tmp$time == end.year])/sum(tmp$Exposure[tmp$time == end.year])
 
   source("Auto_Autonomous_Vehicle_Percentage_Worst.R")
   Auto_Exposure_pct_Worst$Scenario <- "Autonomous % of Carbia"
-  Auto_Exposure_pct_Worst$Case <- "Worst"
+  Auto_Exposure_pct_Worst$Case <- "Downward"
+  
+  # Here we have the Downward shock for Autonomous vehicle percentage of Exposure
+  carb.commercial.pct$Case <- "Downward"
+  carb.c.exp.pct <- rbind(carb.c.exp.pct, carb.commercial.pct)
+  carb.personal.pct$Case <- "Downward"
+  carb.p.exp.pct <- rbind(carb.p.exp.pct, carb.personal.pct)
 
+  # Exposure percentage, of autonomy in end.year
+  tmp <- Auto_Exposure_pct_Worst
+  sum(tmp$Exposure[tmp$Autonomy != "A0" & tmp$time == end.year])/sum(tmp$Exposure[tmp$time == end.year])
+  
+  
   source("Auto_multiplier_best.R")
-  Auto_Multiplier_Best$Scenario <- "Multipliers"
-  Auto_Multiplier_Best$Case <- "Best"
+  Auto_Multiplier_Best$Scenario <- "Frequency and amount"
+  Auto_Multiplier_Best$Case <- "Upward"
   Base_mult <- Base
-  Base_mult$Scenario <-  "Multipliers"
+  Base_mult$Scenario <- "Frequency and amount"
   Base_mult$Case <- "Base"
   
 
   source("Auto_multiplier_worst.R")
-  Auto_Multiplier_Worst$Scenario <- "Multipliers"
-  Auto_Multiplier_Worst$Case <- "Worst"
+  Auto_Multiplier_Worst$Scenario <- "Frequency and amount"
+  Auto_Multiplier_Worst$Case <- "Downward"
   
   source("Auto_new_coverge_Best.R")
   Auto_Coverage_Best$Scenario <- "Coverage"
-  Auto_Coverage_Best$Case <- "Best"
+  Auto_Coverage_Best$Case <- "Upward"
   Base_Coverage <- Base
   Base_Coverage$Scenario <-  "Coverage"
   Base_Coverage$Case <- "Base"
@@ -54,31 +111,45 @@
 
   source("Auto_new_coverge_Worst.R")
   Auto_Coverage_Worst$Scenario <- "Coverage"
-  Auto_Coverage_Worst$Case <- "Worst"
+  Auto_Coverage_Worst$Case <- "Downward"
   
 
   source(file = "Auto_safelife_marketshare_Best.R")
   Auto_safelife_ms_Best$Scenario <- "Safelife Marketshare"
-  Auto_safelife_ms_Best$Case <- "Best"
+  Auto_safelife_ms_Best$Case <- "Upward"
   Base_safelife_ms <- Base
   Base_safelife_ms$Scenario <-  "Safelife Marketshare"
   Base_safelife_ms$Case <- "Base"
   
+  # Here we have the upward shock for marketshare
+  safelife.market.share$Case <- "Upward"
+  safelife.ms <- rbind(safelife.ms, safelife.market.share)
+
+  tmp <- Auto_safelife_ms_Best
+  sum(tmp$Exposure[tmp$Autonomy != "A0" & tmp$time == end.year])/sum(tmp$Exposure[tmp$time == end.year])
+  
   
   source("Auto_safelife_marketshare_Worst.R")
   Auto_Safelife_ms_Worst$Scenario <- "Safelife Marketshare"
-  Auto_Safelife_ms_Worst$Case <- "Worst"
+  Auto_Safelife_ms_Worst$Case <- "Downward"
+  # Here we have the upward shock for marketshare
+  safelife.market.share$Case <- "Downward"
+  safelife.ms <- rbind(safelife.ms, safelife.market.share)
+  
+  tmp <- Auto_Safelife_ms_Worst
+  sum(tmp$Exposure[tmp$Autonomy != "A0" & tmp$time == end.year])/sum(tmp$Exposure[tmp$time == end.year])
+  
   
   source("Combine_Best.R")
   combine_Best$Scenario <- "Combined"
-  combine_Best$Case <- "Best"
+  combine_Best$Case <- "Upward"
   Base_combined <- Base
   Base_combined$Scenario <- "Combined"
   Base_combined$Case <- "Base"
   
   source("Combine_Worst.R")
   combine_Worst$Scenario <- "Combined"
-  combine_Worst$Case <- "Worst"
+  combine_Worst$Case <- "Downward"
   
   
   
@@ -105,207 +176,68 @@
                Base_mult[Base_mult$time >= 2019, ],
                Base_combined[Base_combined$time >= 2019, ])
   
-  tmp.history.pv <- history[, c("time", "Case", "Scenario", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")]
-  tmp.all.pv <- all[, c("time", "Case", "Scenario", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")]
   
-  
-  tmp.history.pv <- cbind(tmp.history.pv[, c("time", "Case", "Scenario")], rowSums(tmp.history.pv[, c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")]))
-  tmp.all.pv <- cbind(tmp.all.pv[, c("time", "Case", "Scenario")], rowSums(tmp.all.pv[, c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")]))
-  
-  names(tmp.history.pv) <- c("time", "Case", "Scenario", "PurePremium")
-  names(tmp.all.pv) <- c("time", "Case", "Scenario", "PurePremium")
-  
-  
-  tmp.all.pv <- aggregate(. ~ time + Scenario+ Case, data = tmp.all.pv, FUN = sum)
-  tmp.history.pv <- aggregate(. ~ time + Scenario + Case, data = tmp.history.pv, FUN = sum)
-  
-  tmp.pv <- rbind(tmp.all.pv, tmp.history.pv)
-  
-  tmp.all.pv$Scenario <- factor(tmp.all.pv$Scenario,
-                             levels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "Combined"),
-                             ordered = T)
-  tmp.all.pv <- tmp.all.pv[order(tmp.all.pv$Scenario),]
-  
-  tmp.history.pv$Scenario <- factor(tmp.history.pv$Scenario,
-                             levels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "Combined"),
-                             ordered = T)
-  tmp.history.pv <- tmp.history.pv[order(tmp.history.pv$Scenario),]
-  
-  tmp.all.pv$Scenario2 <- factor(tmp.all.pv$Scenario, 
-                                 labels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "bold(Combined)"))
-  
-  tmp.history.pv$Scenario2 <- factor(tmp.history.pv$Scenario, 
-                                 labels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "bold(Combined)"))
+  plot.scenarios(all = all, 
+                 history = history, 
+                 safelife.ms = safelife.ms, 
+                 carb.c.exp.pct = carb.c.exp.pct, 
+                 carb.p.exp.pct = carb.p.exp.pct, 
+                 A2.hit.time = 3)
   
   
   
- p <-  ggplot() + 
-    geom_ribbon(data = dcast(tmp.all.pv, time + Scenario ~  Case, value.var = "PurePremium"), mapping = aes(x = time, ymin = Worst,  ymax = Best), alpha = 0.8, fill = "#6191B4")+
-    geom_line(data = tmp.history.pv, mapping = aes(x = time, y = PurePremium, color = Case), size = 1.1 ) +
-    geom_line(data = tmp.all.pv, mapping = aes(x = time, y = PurePremium, color = Case), size = 1.1) +
-    theme_bw(base_size = 16) +
-    scale_color_manual(values = c("Base" = "#004680", "Best" = "#4B82A8", "Worst" = "#4B82A8"))+
-  theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
-        axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
-        axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0)), 
-        legend.position = c(0.85, 0.2) ,
-        panel.spacing = unit(2, "lines"),
-        plot.margin = unit(c(0.3,0.8,0.3,1), "cm")) + 
-    scale_y_continuous(expand = c(0,0), 
-                       name = "Pure Premium in billions", 
-                       breaks = seq(0, 2.2, by = 0.2)*10^(9),
-                       labels = seq(0, 2.2, by = 0.2),
-                       limits = c(0, 2200000000)) +
-    scale_x_continuous(expand = c(0,0), 
-                       name = "Year",
-                       breaks = seq(2010, 2030, by = 5),
-                       labels = seq(2010, 2030, by = 5),
-                       limit = c(2009,2030)) +
-    ggtitle("Scenarios of discounted pure premiums")+ 
-    facet_wrap(. ~ Scenario, scales = "free_x")
-  p
   
- # # tmp.all.pv$facet_fill_color <- c("red", "green", "blue", "yellow", "orange")[tmp.all.pv$Scenario]
- # 
- # 
- #  dummy <- p
- #  dummy$layers <- NULL
- #  dummy <- dummy + geom_rect(data=tmp.all.pv, xmin=-Inf, ymin=-Inf, xmax=Inf, ymax=Inf,
- #                             aes(fill = facet_fill_color))
- # 
- #  library(gtable)
- #  library(grid)
- #  library(gridExtra)
- # 
- #  library(gtable)
- #  gt = ggplot_gtable(ggplot_build(p))
- # 
- #  g1 <- ggplotGrob(p)
- #  g2 <- ggplotGrob(dummy)
- # 
- #  gtable_select <- function (x, ...)
- #  {
- #    matches <- c(...)
- #    x$layout <- x$layout[matches, , drop = FALSE]
- #    x$grobs <- x$grobs[matches]
- #    x
- #  }
- #  
- # 
- #  panels <- grepl(pattern="panel", g2$layout$name)
- #  strips <- grepl(pattern="strip_t", g2$layout$name)
- #  g2$layout$t[panels] <- g2$layout$t[panels] - 1
- #  g2$layout$b[panels] <- g2$layout$b[panels] - 1
- # 
- #  new_strips <- gtable_select(g2, strips | panels)
- #  grid.newpage()
- #  grid.draw(new_strips)
- # 
- #  gtable_stack <- function(g1, g2){
- #    g1$grobs <- c(g1$grobs, g2$grobs)
- #    g1$layout <- transform(g1$layout, z= z-max(z), name="g2")
- #    g1$layout <- rbind(g1$layout, g2$layout)
- #    g1
- #  }
- #  ## ideally you'd remove the old strips, for now they're just covered
- #  new_plot <- gtable_stack(g1, new_strips)
- #  grid.newpage()
- #  grid.draw(new_plot)
-
+  # Write premiums
   
-  tmp.history <- history[, c("time", "Case", "Scenario", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI", "AC_MR", "AC_CR", "AC_IS")]
-  tmp.all <- all[, c("time", "Case", "Scenario", "AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI", "AC_MR", "AC_CR", "AC_IS")]
+  premiums <- Base[, c("RiskClass", "Type", "Autonomy", "BI_pv_prem", "PD_pv_prem", "COM_pv_prem", "COL_pv_prem", "PI_pv_prem", "MR_pv_prem", "CR_pv_prem", "IS_pv_prem")]
+  # take the mean
+  
+  premiums <- aggregate(. ~ RiskClass + Type + Autonomy, data = premiums, FUN = mean)
+  
+  write.xlsx(x = premiums, file = "premiums.xlsx", sheetName = "Sheet1", 
+             col.names = TRUE, row.names = F, append = FALSE)
   
   
-  tmp.history <- cbind(tmp.history[, c("time", "Case", "Scenario")], rowSums(tmp.history[, c("AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI", "AC_MR", "AC_CR", "AC_IS")]))
-  tmp.all <- cbind(tmp.all[, c("time", "Case", "Scenario")], rowSums(tmp.all[, c("AC_BI", "AC_PD", "AC_COM", "AC_COL", "AC_PI", "AC_MR", "AC_CR", "AC_IS")]))
   
-  names(tmp.history) <- c("time", "Case", "Scenario", "PurePremium")
-  names(tmp.all) <- c("time", "Case", "Scenario", "PurePremium")
+  # Long term
   
+  time.frame <- 0:21
+  start.year <- 2019
+  t <- seq(min(time.frame), max(time.frame), by = 0.25)
   
-  tmp.all <- aggregate(. ~ time + Scenario+ Case, data = tmp.all, FUN = sum)
-  tmp.history <- aggregate(. ~ time + Scenario + Case, data = tmp.history, FUN = sum)
-  
-  tmp <- rbind(tmp.all, tmp.history)
-  
-  tmp.all$Scenario <- factor(tmp.all$Scenario,
-                             levels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "Combined"),
-                             ordered = T)
-  tmp.all <- tmp.all[order(tmp.all$Scenario),]
-  
-  tmp.history$Scenario <- factor(tmp.history$Scenario,
-                                 levels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "Combined"),
-                                 ordered = T)
-  tmp.history <- tmp.history[order(tmp.history$Scenario),]
+  # Base is the base case
+  source("Base.R")
   
   
-  ggplot() + 
-    geom_ribbon(data = dcast(tmp.all, time + Scenario ~  Case, value.var="PurePremium"), mapping = aes(x = time, ymin = Worst,  ymax = Best), alpha = 0.8, fill = "#6191B4")+
-    geom_line(data = tmp.history, mapping = aes(x = time, y = PurePremium, color = Case), size = 1.1 ) +
-    geom_line(data = tmp.all, mapping = aes(x = time, y = PurePremium, color = Case), size = 1.1) +
-    theme_bw(base_size = 16) +
-    scale_color_manual(values = c("Base" = "#004680", "Best" = "#4B82A8", "Worst" = "#4B82A8"))+
-    theme(plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+  # Then plot long run
+  tmp <- Base[, names(Base) %in% c("time", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]
+  tmp <- aggregate(. ~ time , data = tmp, FUN = sum)
+  
+  tmp.melt <- melt(data = tmp, id = c("time"))
+  
+  
+  totalclaim.longrun <- ggplot(data = tmp.melt) + 
+    geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+    ggtitle("Expected total loss") + 
+    scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
+                       breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
+                       labels = seq(from=0,to=1.800,by=0.100), 
+                       expand = c(0,0),
+                       limits = c(0, 1.8)*10^9) + 
+    scale_x_continuous(name = "Year", expand = c(0,0)) +
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
           axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
-          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
-          panel.spacing = unit(2, "lines")) + 
-    scale_y_continuous(expand = c(0,0), 
-                       name = "Pure Premium in billions", 
-                       breaks = seq(0, 2.8, by = 0.2)*10^(9),
-                       labels = seq(0, 2.8, by = 0.2),
-                       limits = c(0, 2800000000)) +
-    scale_x_continuous(expand = c(0,0), 
-                       name = "Year",
-                       breaks = seq(2010, 2030, by = 5),
-                       labels = seq(2010, 2030, by = 5),
-                       limit = c(2009,2030)) +
-    ggtitle("Scenarios of pure premiums")+ 
-    facet_wrap(. ~ Scenario )
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5))) + 
+    labs(fill = "Coverage")+
+    scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31", "AC_MR_PV" = "#D45D00", "AC_CR_PV" = "#FDBE87", "AC_IS_PV" = "#F68D2E"),
+                      labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI","AC_MR_PV" =  "MR","AC_CR_PV" =  "CR","AC_IS_PV" =  "IR"))
+ # totalclaim.longrun
+  ggsave("graphs/total_claim_longrun.png", device = "png",plot = totalclaim.longrun, width = 60, height = 20, units = "cm")
   
-
   
-  # Define autonomy 
-  # 
-  # tmp.all.aut <- all[all$Autonomy != "A0", c("time", "Case", "Scenario","Autonomy", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")]
-  # 
-  # tmp.all.aut$Autonomy <- "A1 and A2"
-  # 
-  # tmp.all.aut <- cbind(tmp.all.aut[, c("time", "Case", "Scenario", "Autonomy")], rowSums(tmp.all.aut[, c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")]))
-  # 
-  # names(tmp.all.aut) <- c("time", "Case", "Scenario", "Autonomy", "PurePremium")
-  # 
-  # tmp.all.aut <- aggregate(. ~ time + Scenario + Case+ Autonomy, data = tmp.all.aut, FUN = sum)
-  # 
-  # 
-  # tmp.all.aut$Scenario <- factor(tmp.all.aut$Scenario,
-  #                            levels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "Combined"),
-  #                            ordered = T)
-  # tmp.all.aut <- tmp.all.aut[order(tmp.all.aut$Scenario),]
-  # 
-  # ggplot() + 
-  #   geom_ribbon(data = dcast(tmp.all, time + Scenario ~  Case, value.var="PurePremium"), mapping = aes(x = time, ymin = Worst,  ymax = Best), alpha = 0.8, fill = "#6191B4")+
-  #   geom_line(data = tmp.history, mapping = aes(x = time, y = PurePremium, color = Case), size = 1.1 ) +
-  #   geom_line(data = tmp.all, mapping = aes(x = time, y = PurePremium, color = Case), size = 1.1) +
-  #   theme_bw(base_size = 16) +
-  #   scale_color_manual(values = c("Base" = "#004680", "Best" = "#4B82A8", "Worst" = "#4B82A8"))+
-  #   theme(plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
-  #         axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
-  #         axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
-  #         panel.spacing = unit(2, "lines")) + 
-  #   scale_y_continuous(expand = c(0,0), 
-  #                      name = "Pure Premium in billions", 
-  #                      breaks = seq(0, 2.2, by = 0.2)*10^(9),
-  #                      labels = seq(0, 2.2, by = 0.2),
-  #                      limits = c(0, 2200000000)) +
-  #   scale_x_continuous(expand = c(0,0), 
-  #                      name = "Year",
-  #                      breaks = seq(2010, 2030, by = 5),
-  #                      labels = seq(2010, 2030, by = 5),
-  #                      limit = c(2009,2030)) +
-  #   ggtitle("Claim frequency")+ 
-  #   facet_wrap(. ~ Scenario ) +
-  #   geom_ribbon(data = dcast(tmp.all.aut, time + Scenario ~  Case, value.var="PurePremium"), mapping = aes(x = time, ymin = Worst,  ymax = Best), alpha = 0.8, fill = "#6191B4")+
-  #   geom_line(data = tmp.all.aut, mapping = aes(x = time, y = PurePremium, color = Case), size = 1.1) 
-  #   
-  # 
+  
+  
+    

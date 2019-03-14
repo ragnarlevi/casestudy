@@ -916,13 +916,13 @@ plot.main <- function(predict.df){
   tmp <- predict.df[, c("time", "RiskClass", "prop", "Type", "Autonomy")]
   
   prop.plot <- ggplot(data = tmp)+ 
-    geom_line(mapping = aes(x = time, y = prop, color = RiskClass)) + facet_wrap(. ~ Type + Autonomy, scales = "free")+
-    scale_y_continuous(expand = c(0,0),
-                       name = "Percentage") +
-    scale_x_continuous(expand = c(0,0), 
-                       name = "Year") 
+    geom_line(mapping = aes(x = time, y = prop, color = RiskClass), size = 1.02) + 
+    facet_wrap(. ~ Type + Autonomy, scales = "free") +
+    theme_bw(base_size = 20) +
+    scale_y_continuous(name = "Percentage") +
+    scale_x_continuous(name = "Year") 
   
-  ggsave("graphs/prop_plot.png", device = "png",plot = prop.plot, width = 60, height = 20, units = "cm")
+  ggsave("graphs/prop_plot.png", device = "png",plot = prop.plot, width = 60, height = 40, units = "cm")
   
   
   
@@ -950,7 +950,7 @@ plot.main <- function(predict.df){
     ggtitle("The mean amount for each standard coverage") +
     labs(fill = "Levels") + geom_vline(xintercept = 2019, alpha = 0.8)
   
-  ggsave("graphs/amount_example.png", device = "png",plot = amount.Personal, width = 60, height = 20, units = "cm")
+  ggsave("graphs/amount_example.png", device = "png",plot = amount.Personal, width = 60, height = 30, units = "cm")
   
   
   # Plot Claims evolution Commercial
@@ -979,7 +979,7 @@ plot.main <- function(predict.df){
   
  # frequency.personal
   
-  ggsave("graphs/frequency_example.png", device = "png",plot = frequency.personal, width = 60, height = 20, units = "cm")
+  ggsave("graphs/frequency_example.png", device = "png",plot = frequency.personal, width = 60, height = 30, units = "cm")
     
   
 }

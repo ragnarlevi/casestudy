@@ -293,15 +293,35 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   tmp$RiskClass[substr(tmp$RiskClass,1,1) == "M"] <- "Medium"
   tmp$RiskClass[substr(tmp$RiskClass,1,1) == "L"] <- "Large"
 
+  # we need to change the NC to frequency per exposure
+  
+  tmp$NC_BI <- tmp$NC_BI/tmp$Exposure
+  tmp$NC_PD <- tmp$NC_PD/tmp$Exposure
+  tmp$NC_COM <- tmp$NC_COM/tmp$Exposure
+  tmp$NC_COL <- tmp$NC_COL/tmp$Exposure
+  tmp$NC_PI <- tmp$NC_PI/tmp$Exposure
+  
+  
   # tmp.1 includes proportions and Exposure along wit the keys, they sum when aggregated
-  tmp.1 <- tmp[, c("Year", "Autonomy", "Qtr", "Type", "time", "RiskClass", "Exposure", "prop", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")]
+  tmp.1 <- tmp[, c("Year", "Autonomy", "Qtr", "Type", "time", "RiskClass", "Exposure", "prop")]
   tmp.1 <- aggregate(. ~ Year + Autonomy + Qtr + Type + time + RiskClass, data = tmp.1, FUN = sum)
   # tmp.2 includes the coverages which should be averaged
-  tmp.2 <- tmp[, !(names(tmp) %in% c("Exposure", "prop", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI"))]
+  tmp.2 <- tmp[, !(names(tmp) %in% c("Exposure", "prop"))]
   tmp.2 <- aggregate(. ~ Year + Autonomy + Qtr + Type + time + RiskClass, data = tmp.2, FUN = mean)
+  
 
   # join them
-  tmp <- full_join(x = tmp.1, y = tmp.2, by = c("Year", "Autonomy", "Qtr", "Type", "time", "RiskClass"))
+  tmp <- inner_join(x = tmp.1, y = tmp.2, by = c("Year", "Autonomy", "Qtr", "Type", "time", "RiskClass"))
+  
+  # get number of claims again
+  tmp$NC_BI <- tmp$NC_BI*tmp$Exposure
+  tmp$NC_PD <- tmp$NC_PD*tmp$Exposure
+  tmp$NC_COM <- tmp$NC_COM*tmp$Exposure
+  tmp$NC_COL <- tmp$NC_COL*tmp$Exposure
+  tmp$NC_PI <- tmp$NC_PI*tmp$Exposure
+  
+  
+  
   tmp$AC_BI <- tmp$NC_BI*tmp$AAC_BI
   tmp$AC_PD <- tmp$NC_PD*tmp$AAC_PD
   tmp$AC_COM <- tmp$NC_COM*tmp$AAC_COM
@@ -903,6 +923,63 @@ plot.main <- function(predict.df){
                        name = "Year") 
   
   ggsave("graphs/prop_plot.png", device = "png",plot = prop.plot, width = 60, height = 20, units = "cm")
+  
+  
+  
+  # plot amount evolution personal
+  tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "AAC_BI", "AAC_PD", "AAC_COM", "AAC_COL", "AAC_PI", "AAC_MR", "AAC_IS", "AAC_CR")]
+  tmp <- aggregate(formula = . ~ time + Autonomy , data = tmp, FUN = mean)
+  tmp.melt <- melt(data = tmp, id = c("time", "Autonomy"))
+  
+  amount.Personal <- ggplot(data = tmp.melt) + 
+    geom_line(mapping = aes(x = time, y = value, color = Autonomy), size = 1.1) +
+    facet_wrap(facets = . ~ variable, scales = "free") +
+    ggtitle("Total oss per claim for the standard coverages ") +
+    scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8")) + 
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          panel.spacing = unit(1, "cm")) + 
+    scale_y_continuous(expand = c(0.05,0), 
+                       name = TeX("Amount in   $\\hat{C}$")) +
+    scale_x_continuous(expand = c(0,0), 
+                       name = "Year") +
+    ggtitle("The mean amount for each standard coverage") +
+    labs(fill = "Levels") + geom_vline(xintercept = 2019, alpha = 0.8)
+  
+  ggsave("graphs/amount_example.png", device = "png",plot = amount.Personal, width = 60, height = 20, units = "cm")
+  
+  
+  # Plot Claims evolution Commercial
+  tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")]
+  tmp <- aggregate(formula = . ~ time + Autonomy , data = tmp, FUN = sum)
+  tmp.melt <- melt(data = tmp, id = c("time", "Autonomy"))
+  
+  frequency.personal <- ggplot(data = tmp.melt) + 
+    geom_line(mapping = aes(x = time, y = value, color = Autonomy), size = 1.1) +
+    facet_wrap(facets = . ~ variable, scales = "free") + 
+    ggtitle("Frequency of claims for the standard coverages ") +
+    scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8")) + 
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          panel.spacing = unit(1, "cm")) + 
+    scale_y_continuous(expand = c(0.05,0), 
+                       name = TeX("Amount in   $\\hat{C}$")) +
+    scale_x_continuous(expand = c(0,0), 
+                       name = "Year") +
+    ggtitle("The mean number of claims for each standard coverage") +
+    labs(fill = "Levels") + geom_vline(xintercept = 2019, alpha = 0.8)
+  
+ # frequency.personal
+  
+  ggsave("graphs/frequency_example.png", device = "png",plot = frequency.personal, width = 60, height = 20, units = "cm")
     
   
 }

@@ -189,17 +189,17 @@
   
   
   # Calculate Scenario Impact, 16 + 2 calculations...brute force
+  # 
   
   # final year of calculation
   end.time <- max(Base$time)
-  
-  # Base total loss
-  # TRADITIONAL
   
   impacts <- data.frame(matrix(NA,  ncol =6, nrow = 4))
   names(impacts) <- c("b.trad", "b.aut", "u.trad", "u.aut", "d.trad", "d.aut")
   rownames(impacts) <- c("ms", "pct", "mult", "cov")
   
+  # Base total loss
+  # TRADITIONAL
   
   Base.tl.trad <- sum(Base[Base$time == end.time & Base$Autonomy == "A0", c("AC_BI_PV", "AC_PD_PV",
                                                                             "AC_COM_PV", "AC_COL_PV",
@@ -306,17 +306,12 @@
   
   
   
+  # Total decrease in collisions
   
+  nc_per_exp_2030 <- sum(Base$NC_COL[Base$time == end.time])/sum(Base$Exposure[Base$time == end.time])
+  nc_per_exp_2019 <- sum(Base$NC_COL[Base$time == 2019])/sum(Base$Exposure[Base$time == 2019])
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
+  nc_per_exp_2030/nc_per_exp_2019
   
   # Write premiums
   

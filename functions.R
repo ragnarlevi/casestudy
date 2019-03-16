@@ -238,7 +238,7 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   # add the Risk Class back
   predict.df$RiskClass <- paste(predict.df$VehicleSize, predict.df$DriverAge, predict.df$DriverRisk, sep = "")
   predict.df <- predict.df[, !(names(predict.df) %in% c("VehicleSize", "DriverAge", "DriverRisk"))]
-  
+
   
   # A2 only has 3 Classes So we need to aggregate with mean and sum
 
@@ -258,6 +258,9 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   tmp$NC_COM <- tmp$NC_COM/tmp$Exposure
   tmp$NC_COL <- tmp$NC_COL/tmp$Exposure
   tmp$NC_PI <- tmp$NC_PI/tmp$Exposure
+  
+  is.nan.data.frame <- function(x){do.call(cbind, lapply(x, is.nan))}
+  tmp[is.nan.data.frame(tmp)] <- 0
   
   
   # tmp.1 includes proportions and Exposure along wit the keys, they sum when aggregated
@@ -780,34 +783,6 @@ plot.main <- function(predict.df){
   ggsave("graphs/total_claim.png", device = "png",plot = totalclaim, width = 60, height = 20, units = "cm")
   
   
-  # NO-AV
-  tmp <- predict.df[predict.df$Autonomy == "A0", names(predict.df) %in% c("time", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV")]
-  tmp <- aggregate(. ~ time , data = tmp, FUN = sum)
-  
-  tmp.melt <- melt(data = tmp, id = c("time"))
-  
-  
-  totalclaim.NOAV <- ggplot(data = tmp.melt) + 
-    geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
-    ggtitle("Expected total loss") + 
-    scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
-                       breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
-                       labels = seq(from=0,to=1.800,by=0.100), 
-                       expand = c(0,0),
-                       limits = c(0, 1.8)*10^9) + 
-    scale_x_continuous(name = "Year", expand = c(0,0)) +
-    theme_bw(base_size = 20) + 
-    theme(panel.grid.major.x = element_blank(),
-          panel.grid.minor.x = element_blank(),
-          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
-          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
-          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5))) + 
-    labs(fill = "Coverage")+
-    scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31"),
-                      labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI"))
-  
-  ggsave("graphs/total_claim_NO_AV.png", device = "png",plot = totalclaim.NOAV, width = 60, height = 20, units = "cm")
-  
   
   
   # Premiums
@@ -921,10 +896,11 @@ plot.main <- function(predict.df){
   ggsave("graphs/frequency_example.png", device = "png",plot = frequency.personal, width = 60, height = 30, units = "cm")
     
   
+  
 }
 
 
-plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp.pct, A2.hit.time){
+plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp.pct, A2.hit.time, Base, NO_AV){
   
   # All Scenarios COMBINED
   # Next we safe plots, a folder called graph is needed in the working directory
@@ -991,7 +967,7 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
                        limit = c(2009,2030)) +
     ggtitle("Expected total loss for different scenarios")
 
-  ggsave("graphs/totalloss_scenarios.png", device = "png",plot = p.pv, width = 60, height = 20, units = "cm")
+  ggsave("graphs/totalloss_scenarios.png", device = "png",plot = p.pv, width = 60, height = 30, units = "cm")
   
   
 # Plot marketshare Scenarios
@@ -1304,7 +1280,77 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   ggsave("graphs/totalclaim_combined_shocks.png", device = "png",plot = totalclaim.comb, width = 60, height = 20, units = "cm")
   
   
+  # NO-AV
+  tmp <- NO_AV[, names(NO_AV) %in% c("time", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV")]
+  tmp <- aggregate(. ~ time , data = tmp, FUN = sum)
+  
+  tmp.melt <- melt(data = tmp, id = c("time"))
+  
+  
+  totalclaim.NOAV <- ggplot(data = tmp.melt) + 
+    geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
+    ggtitle("Expected total loss") + 
+    scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
+                       breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
+                       labels = seq(from=0,to=1.800,by=0.100), 
+                       expand = c(0,0),
+                       limits = c(0, 1.8)*10^9) + 
+    scale_x_continuous(name = "Year", expand = c(0,0)) +
+    theme_bw(base_size = 20) + 
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5))) + 
+    labs(fill = "Coverage")+
+    scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31"),
+                      labels = c("AC_BI_PV" = "BI", "AC_PD_PV" = "PD","AC_COM_PV" =  "COM","AC_COL_PV" =  "COL","AC_PI_PV" =  "PI"))
+  
+  ggsave("graphs/total_claim_NO_AV.png", device = "png",plot = totalclaim.NOAV, width = 60, height = 20, units = "cm")
+  
+  
+  
+  
+  # NO_AV 
+  # Exposure proportion ploto
+  tmp.base <- Base[Base$time > 2019, c("time", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]
+  tmp.base <- cbind(tmp.base[, c("time")], rowSums(tmp.base[, c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]))
+  tmp.base <- aggregate(. ~ time , data = tmp.base, FUN = sum)
+  names(tmp.base) <- c("time", "total.base")
+
+  tmp.noav <- NO_AV[NO_AV$time > 2019, c("time", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]
+  tmp.noav <- cbind(tmp.noav[, c("time")], rowSums(tmp.noav[, c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]))
+  tmp.noav <- aggregate(. ~ time , data = tmp.noav, FUN = sum)
+
+  names(tmp.noav) <- c("time", "total.noav")
+  
+  tmp <- inner_join(x = tmp.base, tmp.noav, by = c("time"))
+  tmp$prop <- tmp$total.base/tmp$total.noav -1
+  
+  
+  
+  premium.prop <- ggplot() + 
+    geom_line(data = tmp, mapping = aes(x = time, y = prop), size = 1.1) +
+    ggtitle("AV's percentage of exposure") +
+    scale_color_manual(values = c("A2" = "#298FC2" , "A1" = "#8DC8E8", "A1 and A2" = "#004F71")) + 
+    theme_bw(base_size = 20)  +
+    theme(plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
+          axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
+          panel.spacing = unit(1, "cm")) + 
+    scale_y_continuous(expand = c(0,0), 
+                       name = TeX("Percentage"), breaks = seq(0, 1, by = 0.1), 
+                       labels = c( "0%","10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"),
+                       limits =c(0,1) )+
+    scale_x_continuous(expand = c(0,0), 
+                       name = "Year") +
+    labs(fill = "Levels") + geom_vline(xintercept = 2019, alpha = 0.8)
+  
+  # exposure.prop
+  ggsave("graphs/exposure_prop.png", device = "png",plot = premium.prop, width = 60, height = 30, units = "cm")
   
 }
+
+
 
 

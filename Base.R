@@ -125,7 +125,7 @@ loss.pct$A2 <- data.frame(time = t,
                           AAC_PI.pct = rep(1, length(t)))
 
 
-# interst
+# interest calculation, the mean ( it is the same number for each how these models as the slope as already beed adjusted see GLM.R)
 bi_i <- glm$rd$Amount$Model$BI$coefficients[names(glm$rd$Amount$Model$BI$coefficients) == "time"]
 pd_i <- glm$rd$Amount$Model$PD$coefficients[names(glm$rd$Amount$Model$PD$coefficients) == "time"]
 com_i <- glm$rd$Amount$Model$COM$coefficients[names(glm$rd$Amount$Model$COM$coefficients) == "time"]

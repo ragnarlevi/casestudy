@@ -38,16 +38,19 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
   }
 }
 
-
+# Function that calculations proportion of risk classes 
 findProportions <- function(df.main, years = NULL){
   
+  # initialize column
   df.main$prop <- 0
   df.main$Qtr <- as.numeric(df.main$Qtr)
   
-  
+  # if null we find proprotion for all the years
   if(is.null(years)){
     years <- unique(df.main$Year) 
   }
+  
+  # for loop that calculates the proportions for each type
   for(i in years){
     for(j in 1:4){
       te.p <- sum(df.main$Exposure[df.main$Qtr == j & df.main$Year == i & df.main$Type == "Personal"])
@@ -55,7 +58,6 @@ findProportions <- function(df.main, years = NULL){
       df.main$prop[df.main$Qtr == j & df.main$Type == "Personal" & df.main$Year == i] <-  df.main$Exposure[df.main$Qtr == j & df.main$Type == "Personal" & df.main$Year == i]/te.p
       df.main$prop[df.main$Qtr == j & df.main$Type == "Commercial" & df.main$Year == i] <-  df.main$Exposure[df.main$Qtr == j & df.main$Type == "Commercial" & df.main$Year == i]/te.c
       
-    
       }
     
   }
@@ -64,74 +66,14 @@ findProportions <- function(df.main, years = NULL){
   
 }
 
-
-plot.func <- function(predict.df){
-  # predict.df - the main data frame
-  
-  plots <- list()
-  
-  # Autonomy evolution
-  tmp <- predict.df[, names(predict.df) %in% c("time", "Exposure", "Autonomy")]
-  tmp <- aggregate(formula = . ~ time + Autonomy, data = tmp, FUN = sum)
-  plots$Autonomy.evolution <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total Autonomy evolution") + theme(plot.title = element_text(size = 10))
-  
-  # plots$Autonomy.evolution
-  
-  # Personal evolution
-  tmp <- predict.df[predict.df$Type == "Personal", names(predict.df) %in% c("time", "Exposure", "Autonomy")]
-  tmp <- aggregate(formula = . ~ time + Autonomy, data = tmp, FUN = sum)
-  plots$Autonomy.evolution.personal <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total Autonomy evolution for personal") + theme(plot.title = element_text(size = 10))
-  
-  # plots$Autonomy.evolution.personal
-  
-  # Commercial evolution
-  tmp <- predict.df[predict.df$Type == "Commercial", names(predict.df) %in% c("time", "Exposure", "Autonomy")]
-  tmp <- aggregate(formula = . ~ time + Autonomy, data = tmp, FUN = sum)
-  plots$Autonomy.evolution.commercial <- ggplot(data = tmp) + geom_line(aes(x = time, y = Exposure, color = Autonomy)) + ggtitle("Total Autonomy commercial") + theme(plot.title = element_text(size = 10))
-  #plots$Autonomy.evolution.commercial
-  
-  # PLot the Autonomy evolutions
-  
-  # multiplot(plots$Autonomy.evolution.personal, plots$Autonomy.evolution, plots$Autonomy.evolution.commercial, cols = 2)
-  
-  
-  # Plot Claims evolution personal
-  tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")]
-  tmp <- aggregate(formula = . ~ time + Autonomy + Type, data = tmp, FUN = sum)
-  tmp.melt <- melt(data = tmp, id = c("time", "Autonomy", "Type"))
-  
-  plots$frequency.Personal <- ggplot(data = tmp.melt[tmp.melt$Type == "Personal", ]) + geom_line(mapping = aes(x = time, y = value, color = Autonomy)) + facet_wrap(facets = . ~ variable, scales = "free") + ggtitle("Personal frequency evolution")
-  
-  # plot amount evolution personal
-  tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "AAC_BI", "AAC_PD", "AAC_COM", "AAC_COL", "AAC_PI")]
-  tmp <- aggregate(formula = . ~ time + Autonomy + Type, data = tmp, FUN = sum)
-  tmp.melt <- melt(data = tmp, id = c("time", "Autonomy", "Type"))
-  
-  plots$amount.Personal <- ggplot(data = tmp.melt[tmp.melt$Type == "Personal", ]) + geom_line(mapping = aes(x = time, y = value, color = Autonomy)) + facet_wrap(facets = . ~ variable, scales = "free") + ggtitle("Personal mount evolution")
-
-  # Plot Claims evolution Commercial
-  tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")]
-  tmp <- aggregate(formula = . ~ time + Autonomy + Type, data = tmp, FUN = sum)
-  tmp.melt <- melt(data = tmp, id = c("time", "Autonomy", "Type"))
-  
-  plots$frequency.Commercial <- ggplot(data = tmp.melt[tmp.melt$Type == "Commercial", ]) + geom_line(mapping = aes(x = time, y = value, color = Autonomy)) + facet_wrap(facets = . ~ variable, scales = "free") + ggtitle("Commercial frequency evolution")
-  
-  # plot amount evolution Commercial
-  tmp <- predict.df[, names(predict.df) %in% c("time", "Autonomy", "Type", "AAC_BI", "AAC_PD", "AAC_COM", "AAC_COL", "AAC_PI")]
-  tmp <- aggregate(formula = . ~ time + Autonomy + Type, data = tmp, FUN = sum)
-  tmp.melt <- melt(data = tmp, id = c("time", "Autonomy", "Type"))
-  
-  plots$amount.Commercial <- ggplot(data = tmp.melt[tmp.melt$Type == "Commercial", ]) + geom_line(mapping = aes(x = time, y = value, color = Autonomy)) + facet_wrap(facets = . ~ variable, scales = "free") + ggtitle("Commercial amount evolution")
-  
-
-  
-  return(plots)
-  
-}
-
-
+# This function takes in the frequecny and amount multipliers lists 
+# and makes a data frame out of it for easy table join
 freq.loss.tidy <- function(freq.pct, loss.pct){
+  # freq.pct - frequency multipliers list
+  # loss.pct - loss multipliers list
   
+  # add a column to the data frames in the list called autonomy as that is one key of the main data frame
+  # used in the function model.2
   for(i in names(freq.pct)){
     freq.pct[[i]]$Autonomy <- i
     loss.pct[[i]]$Autonomy <- i
@@ -140,6 +82,7 @@ freq.loss.tidy <- function(freq.pct, loss.pct){
   
   tmp <- inner_join(do.call(what = rbind, args = freq.pct), do.call(what = rbind, args = loss.pct), by = c("time", "Autonomy"))
   
+  # add Year and Qtr as they are keys in the main table
   tmp$Year <- 2018 + ceiling(tmp$time)
   tmp$Qtr <- (tmp$time * 4) %% 4
   tmp$Qtr[tmp$Qtr == 0] <- 4
@@ -148,19 +91,29 @@ freq.loss.tidy <- function(freq.pct, loss.pct){
   
 }
 
-# freq.loss.tidy(freq.pct = freq.pct, loss.pct = loss.pct)
 
-
-
+# main function
 model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia.exposure, carb.commercial.pct, carb.personal.pct, freq.pct, loss.pct, MR.fac.a2 , IS.fac.a2 , CR.fac.a2, interest, MR.fac.a1 , IS.fac.a1 , CR.fac.a1, sl.enter.year, sl.enter.qtr ){
   # time frame
   # autocar - original data frae
-  # glm.list <- the glm list
+  # glm.list <- the glm list used for prediction
   # safelife.market.share
   # carb.personal.pct 
   # carb.commercial.pct 
   # carbia.exposure
+  # freq.pct - list of frequency multipliers 
+  # loss.pct - list of loss multipliers
+  # MR.fac.a2 - malfunction risk A2 multiplieres
+  # IS.fac.a2 - infrastructure risk a2 multipliers
+  # CR.fac.a2 - cyber risk a2 multipliers
+  # interest - inflation used
+  # MR.fac.a1 - malfunction risk A1 multiplieres
+  # IS.fac.a1 - infrastructure risk a1 multipliers
+  # CR.fac.a1 - cyber risk a1 multipliers
+  # sl.enter.year - safelife entrance year
+  # sl.enter.qtr  - safelife entrance year
   
+  # define levels
   lvls <- c("A0", "A1", "A2")
   # Let'ts make a data frame with the future year, Qtr, type, Risk Class, Autonomy columns
   tmp.df <- data.frame(Year = 2019 + time.frame)
@@ -174,10 +127,26 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   
   
   # calculate proportions
-  # df.main <-  autocar
+  # this code takes a verage of the history proprotions
+  ##########
+  # prop <- riskClassProp(df.main = autocar, time.frame = time.frame, start.year = 2019, lvls = lvls)
+  # predict.df <- inner_join(instances, prop, by = c("Qtr","RiskClass", "Type", "Autonomy", "Year"))
+  ###########
+  # This tokes takes the most recent observed proportions
+  ##########################
+  prop <- findProportions(df.main = autocar)
+  # select only what we want
+  prop <- prop[prop$Year == 2018 & prop$Qtr == 4, names(prop) %in% c("RiskClass", "Type", "prop")]
+  # Then join
+  predict.df <- inner_join(prop, instances, by = c("RiskClass", "Type"))
+  ###########################
   
-  prop <- riskClassProp(df.main = autocar, time.frame = time.frame, start.year = 2019, lvls = lvls)
-
+  
+  # We start bultind the main data frame which includes everythin
+  # It is important to note that Qtr, RiskClass, Type, Autonomy and Year 
+  
+ 
+  
   # get exposure from carbia and safelife number
   exposure <- exposure.tidy(safelife.market.share = safelife.market.share, 
                             carbia.exposure = carbia.exposure, 
@@ -185,25 +154,19 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
                             carb.personal.pct = carb.personal.pct)
   
   # We need to remove set exposure to zero if safelife has not entered the market
-  
   exposure$Exposure[exposure$Year < sl.enter.year & exposure$Autonomy != "A0"] <- 0
   # and then remove Quarter
   exposure$Exposure[exposure$Year == sl.enter.year & exposure$Qtr < sl.enter.qtr & exposure$Autonomy != "A0"] <- 0
   
   
-
   
-  # Finally we add stuff
-  predict.df <- inner_join(instances, prop, by = c("Qtr","RiskClass", "Type", "Autonomy", "Year"))
-
   predict.df <- left_join(x = predict.df, y = exposure,  by = c("Qtr", "Type", "Autonomy", "Year"))
   # add time variable
-  
   predict.df$time <- predict.df$Year + 2.5*predict.df$Qtr/10
   
   
   # Then we multiply prop with exposure to adjust the Risk Class exposure
-  
+  # this is basically exposure breakdown to riskclasses and type
   predict.df$Exposure <- predict.df$Exposure*predict.df$prop
   
   # Now we use the model to get the exposure, dive Risk Class into 3 columns and remove the original
@@ -224,39 +187,35 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   predict.df$DriverRisk[grepl("^..A", x = predict.df$RiskClass)] <- "A"
   predict.df$DriverRisk[grepl("^..H", x = predict.df$RiskClass)] <- "H"
   
+  # remove RiskClass for 
   predict.df <- predict.df[, !(names(predict.df) %in% "RiskClass")]
   
 
-  
- # for(i in lvls){
-    # Then we predict
-    # NC
-    predict.df$NC_BI <- exp(predict(object = glm.list$Number$Model$BI, newdata = predict.df))
-    predict.df$NC_PD <- exp(predict(object = glm.list$Number$Model$PD, newdata = predict.df))
-    predict.df$NC_COM <- exp(predict(object = glm.list$Number$Model$COM, newdata = predict.df))
-    predict.df$NC_COL <- exp(predict(object = glm.list$Number$Model$COL, newdata = predict.df))
-    predict.df$NC_PI <- exp(predict(object = glm.list$Number$Model$PI, newdata = predict.df))
-  
-    # AAC
-    predict.df$AAC_BI <- exp(predict(object = glm.list$Amount$Model$BI, newdata = predict.df))
-    predict.df$AAC_PD <- exp(predict(object = glm.list$Amount$Model$PD, newdata = predict.df))
-    predict.df$AAC_COM <- exp(predict(object = glm.list$Amount$Model$COM, newdata = predict.df))
-    predict.df$AAC_COL <- exp(predict(object = glm.list$Amount$Model$COL, newdata = predict.df))
-    predict.df$AAC_PI <- exp(predict(object = glm.list$Amount$Model$PI, newdata = predict.df))
-    
-    
-  #}
+  # Do the prediction
+  # NC
+  predict.df$NC_BI <- exp(predict(object = glm.list$Number$Model$BI, newdata = predict.df))
+  predict.df$NC_PD <- exp(predict(object = glm.list$Number$Model$PD, newdata = predict.df))
+  predict.df$NC_COM <- exp(predict(object = glm.list$Number$Model$COM, newdata = predict.df))
+  predict.df$NC_COL <- exp(predict(object = glm.list$Number$Model$COL, newdata = predict.df))
+  predict.df$NC_PI <- exp(predict(object = glm.list$Number$Model$PI, newdata = predict.df))
+  # AAC
+  predict.df$AAC_BI <- exp(predict(object = glm.list$Amount$Model$BI, newdata = predict.df))
+  predict.df$AAC_PD <- exp(predict(object = glm.list$Amount$Model$PD, newdata = predict.df))
+  predict.df$AAC_COM <- exp(predict(object = glm.list$Amount$Model$COM, newdata = predict.df))
+  predict.df$AAC_COL <- exp(predict(object = glm.list$Amount$Model$COL, newdata = predict.df))
+  predict.df$AAC_PI <- exp(predict(object = glm.list$Amount$Model$PI, newdata = predict.df))
   
   # Remove columns we don't need
   predict.df <- predict.df[, !(names(predict.df) %in% c("carb.pct", "carbia_exposure", "safelife.pct"))]
   
-  
   # loss and frequency multpliers
   multipliers <- freq.loss.tidy(freq.pct = freq.pct, loss.pct = loss.pct)
   
+  # add the multiplers to the 
   predict.df <- left_join(x = predict.df, y = multipliers, by = c("Autonomy", "Year", "Qtr"))
   
-  # Ajust frequency of claims and amount of claims
+  # Ajust frequency of claims and amount of claims for the
+  # autonomy levels, the multipliers are 1 for A0
   predict.df$NC_BI <- predict.df$NC_BI*predict.df$NC_BI.pct
   predict.df$NC_PD <- predict.df$NC_PD*predict.df$NC_PD.pct
   predict.df$NC_COM <- predict.df$NC_COM*predict.df$NC_COM.pct
@@ -269,24 +228,23 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   predict.df$AAC_COL <- predict.df$AAC_COL*predict.df$AAC_COL.pct
   predict.df$AAC_PI <- predict.df$AAC_PI*predict.df$AAC_PI.pct
   
-  # Then multiply to find the amount
-  
+  # Then multiply to find the total amount
   predict.df$AC_BI <- predict.df$NC_BI*predict.df$AAC_BI
   predict.df$AC_PD <- predict.df$NC_PD*predict.df$AAC_PD
   predict.df$AC_COM <- predict.df$NC_COM*predict.df$AAC_COM
   predict.df$AC_COL <- predict.df$NC_COL*predict.df$AAC_COL
   predict.df$AC_PI <- predict.df$NC_PI*predict.df$AAC_PI
   
-  
-  predict.df$RiskClass <- paste(predict.df$VehicleSize, predict.df$DriverAg, predict.df$DriverRisk, sep = "")
+  # add the Risk Class back
+  predict.df$RiskClass <- paste(predict.df$VehicleSize, predict.df$DriverAge, predict.df$DriverRisk, sep = "")
   predict.df <- predict.df[, !(names(predict.df) %in% c("VehicleSize", "DriverAge", "DriverRisk"))]
   
   
-  # A2 only has 3 Classes So we 
-  # Next we need to aggregate A2
+  # A2 only has 3 Classes So we need to aggregate with mean and sum
 
+  # tmp will hold the changes
   tmp <- predict.df[predict.df$Autonomy == "A2", ]
-  # remove then add back
+  # remove A2 temporarily from the main data frame and then add it back once it is finished
   predict.df <- predict.df[predict.df$Autonomy != "A2", ]
   # Change  Risk Class
   tmp$RiskClass[substr(tmp$RiskClass,1,1) == "S"] <- "Small"
@@ -320,7 +278,7 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   tmp$NC_COL <- tmp$NC_COL*tmp$Exposure
   tmp$NC_PI <- tmp$NC_PI*tmp$Exposure
   
-  
+  # Get Total amount 
   
   tmp$AC_BI <- tmp$NC_BI*tmp$AAC_BI
   tmp$AC_PD <- tmp$NC_PD*tmp$AAC_PD
@@ -328,41 +286,21 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   tmp$AC_COL <- tmp$NC_COL*tmp$AAC_COL
   tmp$AC_PI <- tmp$NC_PI*tmp$AAC_PI
 
+  # Add back to the main data frame
   predict.df <- rbind(predict.df, tmp)
 
    
   # Add new coverages
-
-  # # sum nc
-  # total.coverage.sum.nc <- mean(rowSums(autocar[, c("NC_BI", "NC_PD", "NC_COM", "NC_COL", "NC_PI")])/autocar$Exposure)
-  # #
-  # 
-  # # nO SEASONALITY LETS REGRESS
-  # lm.BI <- lm(formula = AAC_BI ~ time, data = predict.df)
-  # lm.PD <- lm(formula = AAC_PD ~ time, data = predict.df)
-  # lm.COM <- lm(formula = AAC_COM ~ time, data = predict.df)
-  # lm.COL <- lm(formula = AAC_COL ~ time, data = predict.df)
-  # lm.PI <- lm(formula = AAC_PI ~ time, data = predict.df)
-  # # linear non seasonal AAC
-  # x.BI <- predict(object = lm.BI, predict.df)
-  # x.PD <- predict(object = lm.PD, predict.df)
-  # x.COM <- predict(object = lm.COM, predict.df)
-  # x.COL <- predict(object = lm.COL, predict.df)
-  # x.PI <- predict(object = lm.PI, predict.df)
-  # 
-  # x <- rowSums( cbind(x.BI, x.PD, x.COM, x.COL, x.PI))
-  # 
-  
-  # New coverages are percentages of the total loss for A0 and then divide by exposure
   tmp <- autocar
   tmp$Autonomy <- "A0"
+  # loss per exposure
   total.loss.A0 <- cbind(tmp[, c("time", "RiskClass", "Type", "Autonomy")] ,rowSums(cbind(tmp$AC_BI/tmp$Exposure, 
                                                                                                  tmp$AC_PD/tmp$Exposure, 
                                                                                                  tmp$AC_COL/tmp$Exposure, 
                                                                                                  tmp$AC_COM/tmp$Exposure, 
                                                                                                  tmp$AC_PI/tmp$Exposure)))
   names(total.loss.A0) <- c("time", "RiskClass", "Type", "Autonomy", "total.loss")
-  # we only want A0, and only time = 2019 and the remove the time column
+  # we only want A0, and only time = 2019 and then remove the time column
   total.loss.A0 <-  total.loss.A0[total.loss.A0$Autonomy == "A0" & total.loss.A0$time == 2019, ]
   total.loss.A0 <- total.loss.A0[, !(names(total.loss.A0) %in% "time")]
   # A1 has the same values as A0
@@ -379,7 +317,6 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   total.loss.A2 <- aggregate(. ~RiskClass + Type + Autonomy, data = total.loss.A2, FUN = mean)
   
   # Then we bind
-  
   total.loss <- rbind(total.loss.A0, total.loss.A1, total.loss.A2)
   # A0 should be zero because A0 does not have the new coverage
   total.loss$total.loss[total.loss$Autonomy == "A0"] <- 0
@@ -462,14 +399,16 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   predict.df$pv_factor <- exp((predict.df$time-2019)*interest)
   
   
-  # Remark NOTE!!!!!!!!!! New coverages have not bee accumulated
+  # Remark NOTE!!!!!!!!!! New coverages have not been accumulated
   # so we accumulate with interest and divide again for the sake of 
   # consistancy
   
+  # accumulate new coverages
   predict.df$AC_MR <- predict.df$AC_MR*predict.df$pv_factor
   predict.df$AC_IS <- predict.df$AC_IS*predict.df$pv_factor
   predict.df$AC_CR <- predict.df$AC_CR*predict.df$pv_factor
   
+  # take present value
   predict.df$AC_BI_PV <- predict.df$AC_BI/predict.df$pv_factor
   predict.df$AC_PD_PV <- predict.df$AC_PD/predict.df$pv_factor
   predict.df$AC_COM_PV <- predict.df$AC_COM/predict.df$pv_factor
@@ -1050,7 +989,7 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
                        breaks = seq(2010, 2030, by = 5),
                        labels = seq(2010, 2030, by = 5),
                        limit = c(2009,2030)) +
-    ggtitle("Total loss scenarios")
+    ggtitle("Expected total loss for different scenarios")
 
   ggsave("graphs/totalloss_scenarios.png", device = "png",plot = p.pv, width = 60, height = 20, units = "cm")
   

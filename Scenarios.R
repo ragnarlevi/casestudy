@@ -33,9 +33,9 @@
     sum(Base$Exposure[Base$Autonomy != "A0" & Base$time == end.year])/sum(Base$Exposure[Base$time == end.year])
     
     # purepremium
-    sum(Base[Base$time == end.year, c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")])
-    sum(Base[Base$time == end.year & Base$Autonomy != "A0", c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")])
-    
+    tot <- sum(Base[Base$time == end.year, c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")])
+    av <- sum(Base[Base$time == end.year & Base$Autonomy != "A0", c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")])
+    av/tot
     # Sum exposure total exposure 
     sum(Base$Exposure[Base$time > 2020  & Base$Autonomy != "A0"])
     sum(Base$Exposure[Base$time > 2020  & Base$Autonomy == "A0"])
@@ -160,6 +160,15 @@
     
     source("NO_AV.R")
     
+    no_av_pure_prem <- sum(NO_AV[NO_AV$time == end.year, c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")])
+    base_pure_prem <- sum(Base[Base$time == end.year , c("AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_MR_PV", "AC_CR_PV", "AC_IS_PV")])
+    
+    
+    base_pure_prem/no_av_pure_prem
+    
+    
+    
+    
     
     
     
@@ -186,14 +195,14 @@
                  Base_combined[Base_combined$time >= 2019, ])
     
     
-    plot.scenarios(all = all, 
-                   history = history, 
-                   safelife.ms = safelife.ms, 
-                   carb.c.exp.pct = carb.c.exp.pct, 
-                   carb.p.exp.pct = carb.p.exp.pct, 
+    plot.scenarios(all = all,
+                   history = history,
+                   safelife.ms = safelife.ms,
+                   carb.c.exp.pct = carb.c.exp.pct,
+                   carb.p.exp.pct = carb.p.exp.pct,
                    A2.hit.time = 3, Base, NO_AV)
-    
-    
+
+
     
     
     
@@ -329,8 +338,8 @@
     
     premiums <- aggregate(. ~ RiskClass + Type + Autonomy, data = premiums, FUN = mean)
     
-    # write.xlsx(x = premiums, file = "premiums.xlsx", sheetName = "Sheet1", 
-    #           col.names = TRUE, row.names = F, append = FALSE)
+    write.xlsx(x = premiums, file = "premiums.xlsx", sheetName = "Sheet1", 
+              col.names = TRUE, row.names = F, append = FALSE)
     
     
     
@@ -342,7 +351,9 @@
     
     # Base is the base case
     source("Base.R")
-    
+    # long rong
+    long.run.end <- max(Base$time)
+    sum(Base$Exposure[Base$Autonomy != "A0" & Base$time == long.run.end])/sum(Base$Exposure[Base$time == long.run.end])
     
     # Then plot long run
     tmp <- Base[, names(Base) %in% c("time", "AC_BI_PV", "AC_PD_PV", "AC_COM_PV", "AC_COL_PV", "AC_PI_PV", "AC_IS_PV", "AC_CR_PV", "AC_MR_PV")]

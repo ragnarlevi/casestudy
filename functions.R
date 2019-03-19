@@ -66,7 +66,7 @@ findProportions <- function(df.main, years = NULL){
   
 }
 
-# This function takes in the frequecny and amount multipliers lists 
+# This function takes in the frequency and amount multipliers lists 
 # and makes a data frame out of it for easy table join
 freq.loss.tidy <- function(freq.pct, loss.pct){
   # freq.pct - frequency multipliers list
@@ -127,25 +127,16 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   
   
   # calculate proportions
-  # this code takes a verage of the history proprotions
-  ##########
-  # prop <- riskClassProp(df.main = autocar, time.frame = time.frame, start.year = 2019, lvls = lvls)
-  # predict.df <- inner_join(instances, prop, by = c("Qtr","RiskClass", "Type", "Autonomy", "Year"))
-  ###########
+
   # This tokes takes the most recent observed proportions
-  ##########################
   prop <- findProportions(df.main = autocar)
-  # select only what we want
+  # select only what we want, the most recent one
   prop <- prop[prop$Year == 2018 & prop$Qtr == 4, names(prop) %in% c("RiskClass", "Type", "prop")]
   # Then join
   predict.df <- inner_join(prop, instances, by = c("RiskClass", "Type"))
-  ###########################
-  
   
   # We start bultind the main data frame which includes everythin
   # It is important to note that Qtr, RiskClass, Type, Autonomy and Year 
-  
- 
   
   # get exposure from carbia and safelife number
   exposure <- exposure.tidy(safelife.market.share = safelife.market.share, 
@@ -259,6 +250,7 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   tmp$NC_COL <- tmp$NC_COL/tmp$Exposure
   tmp$NC_PI <- tmp$NC_PI/tmp$Exposure
   
+  # sometime we are actually dividing by zero so we need to adjust that
   is.nan.data.frame <- function(x){do.call(cbind, lapply(x, is.nan))}
   tmp[is.nan.data.frame(tmp)] <- 0
   
@@ -269,7 +261,6 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   # tmp.2 includes the coverages which should be averaged
   tmp.2 <- tmp[, !(names(tmp) %in% c("Exposure", "prop"))]
   tmp.2 <- aggregate(. ~ Year + Autonomy + Qtr + Type + time + RiskClass, data = tmp.2, FUN = mean)
-  
 
   # join them
   tmp <- inner_join(x = tmp.1, y = tmp.2, by = c("Year", "Autonomy", "Qtr", "Type", "time", "RiskClass"))
@@ -375,21 +366,13 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   tmp$AAC_PI.pct <- 1
   
   tmp$AC_MR <- 0
-  #tmp$AAC_MR <- 0
-  #tmp$NC_MR <- 0
 
   tmp$AC_IS <- 0
-  #tmp$AAC_IS <- 0
-  #tmp$NC_IS <- 0
   
-  #tmp$NC_CR <- 0
-  #tmp$AAC_CR <- 0
   tmp$AC_CR <- 0
-  
   
   tmp$time <- tmp$Year + 2.5*as.numeric(tmp$Qtr)/10
   tmp$Qtr <- as.numeric(tmp$Qtr)
-  
   
   # make sure the columns match
   tmp <- tmp[, names(predict.df), drop = F]
@@ -442,6 +425,7 @@ model.2 <- function(time.frame, autocar, glm.list, safelife.market.share, carbia
   
 }
 
+# take all informaton of exposure and make a data frame out of it
 exposure.tidy <- function( safelife.market.share, carbia.exposure, carb.commercial.pct, carb.personal.pct){
   
   safelife.market.share <- melt(safelife.market.share, id.vars = "time")
@@ -484,84 +468,6 @@ exposure.tidy <- function( safelife.market.share, carbia.exposure, carb.commerci
 }
 
 
-riskClassProp <- function(df.main, time.frame, start.year = 2019, lvls){
-  # df.main - The data.frame
-  # Exposure year what exposure year to use 
-  
-  
-  # calculate the proportion for each year and qtr then fin the averages
-  # 27 Risk clasess 40 dates 
-  
-  tmp.prop <- list()
-  count <- 1
-  
-  # we want to make the rows od the data frames correspond to the same row, so we order the Risk Class
-  
-  for (i in unique(df.main$Year)){
-    for(j in unique(df.main$Qtr)){
-      
-      tmp <- df.main[df.main$Year == i & df.main$Qtr == j & df.main$Type == "Personal", ]
-      total.exposure <- sum(tmp$Exposure)
-      tmp.df <- data.frame(prop = tmp$Exposure/total.exposure, RiskClass = tmp$RiskClass, stringsAsFactors = F)
-      
-      tmp.prop[[count]] <- tmp.df[order(tmp.df$RiskClass), "prop" ,drop = F]
-      
-      count <- count + 1
-    }
-  }
-  
-  # take average
-  tmp.prop <- do.call(what = cbind, args = tmp.prop)
-  prop.personal <- rowSums(x = tmp.prop)/dim(tmp.prop)[2]
-  
-  
-  tmp.prop <- list()
-  count <- 1
-  
-  # we want to make the rows od the data frames correspond to the same row, so we order the Risk Class
-  
-  for (i in unique(df.main$Year)){
-    for(j in unique(df.main$Qtr)){
-      
-      tmp <- df.main[df.main$Year == i & df.main$Qtr == j & df.main$Type == "Commercial", ]
-      total.exposure <- sum(tmp$Exposure)
-      tmp.df <- data.frame(prop = tmp$Exposure/total.exposure, RiskClass = tmp$RiskClass, stringsAsFactors = F)
-      
-      tmp.prop[[count]] <- tmp.df[order(tmp.df$RiskClass), "prop" ,drop = F]
-      
-      count <- count + 1
-    }
-  }
-  
-  # take average
-  tmp.prop <- do.call(what = cbind, args = tmp.prop)
-  prop.commercial <- rowSums(x = tmp.prop)/dim(tmp.prop)[2]
-  
-  prop <- data.frame(RiskClass = sort(unique(df.main$RiskClass)), Personal = prop.personal, Commercial = prop.commercial)
-  
-  # instead of two columns we want to have a Type Column, an prop colum
-  prop <- melt(prop, id = "RiskClass")
-  names(prop)[names(prop) == "variable"] <- "Type"
-  names(prop)[names(prop) == "value"] <- "prop"
-  
-  
-  # Then we need to merge year and quarter
-  # new years
-  tmp.df <- data.frame(Year = time.frame + start.year)
-  prop <- as.data.frame(merge(prop, tmp.df))
-  
-  tmp.df <- data.frame(Qtr = sort(unique(df.main$Qtr)))
-  prop <- as.data.frame(merge(prop, tmp.df))
-  
-  tmp.df <- data.frame(Autonomy = lvls)
-  prop <- as.data.frame(merge(prop, tmp.df))
-  
-  
-  return(prop)
-  
-}
-
-
 
 plot.main <- function(predict.df){
   
@@ -572,7 +478,7 @@ plot.main <- function(predict.df){
   
   exposure.descriptive <- ggplot() + 
     geom_line(data = tmp, mapping = aes(x = time, y = Exposure , color = Type), size = 2) + 
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 5.5, l = 5.5), hjust = 0.5),
@@ -589,7 +495,7 @@ plot.main <- function(predict.df){
                        labels = c(2009:2019),
                        limit = c(2009,2019.25)) +
     scale_color_manual(values = c("Commercial" = "#004F71", "Personal" =  "#8DC8E8")) +
-    ggtitle("Safelife's historical exposure")
+    ggtitle("Safelife's Historical Exposure")
   
   ggsave("graphs/exposure_descriptive.png", device = "png",plot = exposure.descriptive, width = 60, height = 20, units = "cm")
   
@@ -609,7 +515,7 @@ plot.main <- function(predict.df){
              stat = "identity", 
              position = "stack",
              width = 0.19) +
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -625,7 +531,7 @@ plot.main <- function(predict.df){
                        breaks = c(2010, 2012, 2014, 2016, 2018),
                        labels = c("2010", "2012", "2014", "2016", "2018"),
                        limit = c(2009,2019))+
-    ggtitle("Total claim amount (present value)") +
+    ggtitle("Total Claim Amount") +
     facet_wrap(. ~ Type) + 
     labs(fill = "Coverage\n")+
     scale_fill_manual(values = c("AC_BI_PV" = "#D9E1E2", "AC_PD_PV" = "#BBDDE6"  ,"AC_COM_PV" = "#71B2C9", "AC_COL_PV" = "#4E87A0","AC_PI_PV" = "#072B31"),
@@ -644,7 +550,7 @@ plot.main <- function(predict.df){
              stat = "identity", 
              position = "stack",
              width = 0.19) +
-    theme_bw(base_size = 17) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -660,7 +566,7 @@ plot.main <- function(predict.df){
                        breaks = c(2009:2019),
                        labels = c(2009:2019),
                        limit = c(2009,2019.25)) +
-    ggtitle("Claim frequency") +
+    ggtitle("Claim Frequency") +
     facet_wrap(. ~ Type) + 
     labs(fill = "Coverage\n")+
     scale_fill_manual(values = c("NC_BI" = "#D9E1E2", "NC_PD" = "#BBDDE6"  ,"NC_COM" = "#71B2C9", "NC_COL" = "#4E87A0","NC_PI" = "#072B31"),
@@ -690,7 +596,7 @@ plot.main <- function(predict.df){
              alpha = 1) +
     facet_wrap(. ~ Type) + 
     scale_fill_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8")) + 
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -704,7 +610,7 @@ plot.main <- function(predict.df){
                        limits = c(0, 700000)) +
     scale_x_continuous(expand = c(0,0), 
                        name = "Year") +
-    ggtitle("Safelife`s exposure") +
+    ggtitle("Safelife`s Exposure") +
     labs(fill = "Levels")
   
   ggsave("graphs/exposure_growth.png", device = "png",plot = exposure.growth, width = 60, height = 20, units = "cm")
@@ -731,14 +637,14 @@ plot.main <- function(predict.df){
   #Plot: predicted total claim amount (present value) *new plot*
   totalclaim.comparison <- ggplot(data = tmp.melt) + 
     geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
-    ggtitle("Expected total loss") + 
+    ggtitle("Expected Total Loss") + 
     scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
                        breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
                        labels = seq(from=0,to=1.800,by=0.100), 
                        expand = c(0,0),
                        limits = c(0, 1.8)*10^9) + 
     scale_x_continuous(name = "Year", expand = c(0,0)) +
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -763,14 +669,14 @@ plot.main <- function(predict.df){
   
   totalclaim <- ggplot(data = tmp.melt) + 
     geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
-    ggtitle("Expected total loss") + 
+    ggtitle("Expected Total Loss") + 
     scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
                        breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
                        labels = seq(from=0,to=1.800,by=0.100), 
                        expand = c(0,0),
                        limits = c(0, 1.8)*10^9) + 
     scale_x_continuous(name = "Year", expand = c(0,0)) +
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -800,7 +706,7 @@ plot.main <- function(predict.df){
   premiums <- ggplot() + 
     geom_line(data = tmp.melt, mapping = aes(x = time, y = value, color = variable), size = 1.1) +
     facet_wrap(. ~ Autonomy, scales = "fixed")+
-    theme_bw(base_size = 16) +
+    theme_bw(base_size = 25) +
     scale_color_manual(values = c("BI_pv_prem" = "#D9E1E2", "PD_pv_prem" = "#BBDDE6"  ,"COM_pv_prem" = "#71B2C9", "COL_pv_prem" = "#4E87A0","PI_pv_prem" = "#072B31", "MR_pv_prem" = "#D45D00", "CR_pv_prem" = "#FDBE87", "IS_pv_prem" = "#F68D2E"),
                        labels = c("BI_pv_prem" = "BI", "PD_pv_prem" = "PD","COM_pv_prem" =  "COM", "COL_pv_prem" =  "COL","PI_pv_prem" =  "PI","MR_pv_prem" =  "MR","CR_pv_prem" =  "CR","IS_pv_prem" =  "IR"))+
     theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -832,7 +738,7 @@ plot.main <- function(predict.df){
   prop.plot <- ggplot(data = tmp)+ 
     geom_line(mapping = aes(x = time, y = prop, color = RiskClass), size = 1.02) + 
     facet_wrap(. ~ Type + Autonomy, scales = "free") +
-    theme_bw(base_size = 20) +
+    theme_bw(base_size = 25) +
     scale_y_continuous(name = "Percentage") +
     scale_x_continuous(name = "Year") 
   
@@ -848,9 +754,9 @@ plot.main <- function(predict.df){
   amount.Personal <- ggplot(data = tmp.melt) + 
     geom_line(mapping = aes(x = time, y = value, color = Autonomy), size = 1.1) +
     facet_wrap(facets = . ~ variable, scales = "free") +
-    ggtitle("Total oss per claim for the standard coverages ") +
+    ggtitle("Total Loss per Claim for the Standard Coverage ") +
     scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8")) + 
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -860,8 +766,7 @@ plot.main <- function(predict.df){
     scale_y_continuous(expand = c(0.05,0), 
                        name = TeX("Amount in   $\\hat{C}$")) +
     scale_x_continuous(expand = c(0,0), 
-                       name = "Year") +
-    ggtitle("The mean amount for each standard coverage") +
+                       name = "Year") 
     labs(fill = "Levels") + geom_vline(xintercept = 2019, alpha = 0.8)
   
   ggsave("graphs/amount_example.png", device = "png",plot = amount.Personal, width = 60, height = 30, units = "cm")
@@ -875,9 +780,9 @@ plot.main <- function(predict.df){
   frequency.personal <- ggplot(data = tmp.melt) + 
     geom_line(mapping = aes(x = time, y = value, color = Autonomy), size = 1.1) +
     facet_wrap(facets = . ~ variable, scales = "free") + 
-    ggtitle("Frequency of claims for the standard coverages ") +
+    ggtitle("Frequency of Claims for the Standard Coverage ") +
     scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8")) + 
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -885,10 +790,9 @@ plot.main <- function(predict.df){
           axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
           panel.spacing = unit(1, "cm")) + 
     scale_y_continuous(expand = c(0.05,0), 
-                       name = TeX("Amount in   $\\hat{C}$")) +
+                       name = "Frequency of claims") +
     scale_x_continuous(expand = c(0,0), 
                        name = "Year") +
-    ggtitle("The mean number of claims for each standard coverage") +
     labs(fill = "Levels") + geom_vline(xintercept = 2019, alpha = 0.8)
   
  # frequency.personal
@@ -919,26 +823,7 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   
   tmp.all.pv <- aggregate(. ~ time + Scenario+ Case, data = tmp.all.pv, FUN = sum)
   tmp.history.pv <- aggregate(. ~ time + Scenario + Case, data = tmp.history.pv, FUN = sum)
-  # 
-  # tmp.pv <- rbind(tmp.all.pv, tmp.history.pv)
-  # 
-  # tmp.all.pv$Scenario <- factor(tmp.all.pv$Scenario,
-  #                               levels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "Combined"),
-  #                               ordered = T)
-  # tmp.all.pv <- tmp.all.pv[order(tmp.all.pv$Scenario),]
-  # 
-  # tmp.history.pv$Scenario <- factor(tmp.history.pv$Scenario,
-  #                                   levels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "Combined"),
-  #                                   ordered = T)
-  # tmp.history.pv <- tmp.history.pv[order(tmp.history.pv$Scenario),]
-  # 
-  # tmp.all.pv$Scenario2 <- factor(tmp.all.pv$Scenario, 
-  #                                labels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "bold(Combined)"))
-  # 
-  # tmp.history.pv$Scenario2 <- factor(tmp.history.pv$Scenario, 
-  #                                    labels = c("Autonomous % of Carbia", "Safelife Marketshare", "Multipliers", "Coverage", "bold(Combined)"))
-  # 
-  
+
   # We dont want to display Combined
   tmp.all.pv <- tmp.all.pv[tmp.all.pv$Scenario != "Combined",]
   tmp.history.pv <- tmp.history.pv[tmp.history.pv$Scenario != "Combined",]
@@ -948,7 +833,7 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
     geom_ribbon(data = dcast(tmp.all.pv, time + Scenario ~  Case, value.var = "PurePremium"), mapping = aes(x = time, ymin = Downward,  ymax = Upward), alpha = 0.8, fill = "#6191B4")+
     geom_line(data = tmp.all.pv, mapping = aes(x = time, y = PurePremium, color = Case), size = 1.1) +
     geom_line(data = tmp.history.pv, mapping = aes(x = time, y = PurePremium, color = Case), size = 1.1 ) +
-    theme_bw(base_size = 16) +
+    theme_bw(base_size = 25) +
     scale_color_manual(values = c("Base" = "#004680", "Upward" = "#4B82A8", "Downward" = "#4B82A8"))+
     theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
           axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
@@ -965,7 +850,7 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
                        breaks = seq(2010, 2030, by = 5),
                        labels = seq(2010, 2030, by = 5),
                        limit = c(2009,2030)) +
-    ggtitle("Expected total loss for different scenarios")
+    ggtitle("Expected Total Loss for Different Scenarios")
 
   ggsave("graphs/totalloss_scenarios.png", device = "png",plot = p.pv, width = 60, height = 30, units = "cm")
   
@@ -984,12 +869,13 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   safelife.ms.scenarios <- ggplot() + geom_line( data = m.safe,mapping = aes(x = time, y = value, color = variable), size = 1.1) + 
     scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=2), label = as.character(2019 + seq(from=0,to=20,by=2)), expand = c(0,0)) +
     scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1.02), expand = c(0,0)) + # expand -> y axis begins at 0 strict
-    theme_bw(base_size = 20) +
+    theme_bw(base_size = 25) +
     scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8"))+
     theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
           axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
-          axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0))) +
-    labs(color = "Level") + ggtitle("Safelife's market share per autonomy level")   +
+          axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0)),
+          axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(color = "Level") + ggtitle("Safelife's Market Share per Autonomy Level")   +
     facet_wrap(. ~ Case, scales = "free")
   
   ggsave("graphs/safelife_ms_shocks.png", device = "png",plot = safelife.ms.scenarios, width = 40, height = 20, units = "cm")
@@ -1003,12 +889,12 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   safelife.ms.base <- ggplot() + geom_line( data = m.safe ,mapping = aes(x = time, y = value, color = variable), size = 1.1) + 
     scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=2), label = as.character(2019 + seq(from=0,to=20,by=2)), expand = c(0,0)) +
     scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1.02), expand = c(0,0)) + # expand -> y axis begins at 0 strict
-    theme_bw(base_size = 20) +
+    theme_bw(base_size = 25) +
     scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8"))+
     theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
           axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
           axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0))) +
-    labs(color = "Level") + ggtitle("Safelife's market share per autonomy level")
+    labs(color = "Level") + ggtitle("Safelife's Market Share per Autonomy Level")
   
   
   ggsave("graphs/safelife_ms_base.png", device = "png",plot = safelife.ms.base, width = 40, height = 20, units = "cm")
@@ -1026,12 +912,12 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   c.exp.carb.graph <- ggplot() + geom_line( data = m.carb,mapping = aes(x = time, y = value, color = variable), size = 1.1) + 
     scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=2), label = as.character(2019 + seq(from=0,to=20,by=2)), expand = c(0,0)) +
     scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1), expand = c(0,0)) + # expand -> y axis begins at 0 strict
-    theme_bw(base_size = 20) +
+    theme_bw(base_size = 25) +
     scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8"))+
     theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
           axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
           axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0))) +
-    labs(color = "Level") + ggtitle("Proportion of exposure per autonomy level for personal vehicles")  +
+    labs(color = "Level") + ggtitle("Proportion of Exposure per Autonomy Level for Personal Vehicles")  +
     facet_wrap(. ~ Case, scales = "free")
   
   ggsave("graphs/commercial_exposure_pct.png", device = "png",plot = c.exp.carb.graph, width = 60, height = 20, units = "cm")
@@ -1046,12 +932,12 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   p.exp.carb.graph <- ggplot() + geom_line( data = m.carb,mapping = aes(x = time, y = value, color = variable), size = 1.1) + 
     scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=2), label = as.character(2019 + seq(from=0,to=20,by=2)), expand = c(0,0)) +
     scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1), expand = c(0,0)) + # expand -> y axis begins at 0 strict
-    theme_bw(base_size = 20) +
+    theme_bw(base_size = 25) +
     scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8"))+
     theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
           axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
           axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0))) +
-    labs(color = "Level") + ggtitle("Proportion of exposure per autonomy level for commercial vehicles")   +
+    labs(color = "Level") + ggtitle("Proportion of Exposure per Autonomy Level for Commercial Vehicles")   +
     facet_wrap(. ~ Case, scales = "free")
   
   ggsave("graphs/personal_exposure_pct.png", device = "png",plot = p.exp.carb.graph, width = 60, height = 20, units = "cm")
@@ -1071,13 +957,13 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
    exp.carb.graph <- ggplot() + geom_line( data = m.carb,mapping = aes(x = time, y = value, color = variable), size = 1.1) + 
      scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=2), label = as.character(2019 + seq(from=0,to=20,by=2)), expand = c(0,0)) +
      scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1), expand = c(0,0)) + # expand -> y axis begins at 0 strict
-     theme_bw(base_size = 17) +
+     theme_bw(base_size = 25) +
      scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8"))+
      theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
            axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
            axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0)),
            strip.text = element_text(size=12)) +
-     labs(color = "Level") + ggtitle("Proportion of exposure per autonomy level")    +
+     labs(color = "Level") + ggtitle("Proportion of Exposure per Autonomy Level")    +
      facet_wrap(. ~ Type + Case, scales = "free") 
    
    ggsave("graphs/exposure_pct_pandc.png", device = "png",plot = exp.carb.graph, width = 60, height = 20, units = "cm")
@@ -1092,13 +978,13 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
    exp.carb.graph.base <- ggplot() + geom_line( data = m.tmp,mapping = aes(x = time, y = value, color = variable), size = 1.1) + 
      scale_x_continuous(name ="Year", breaks = seq(from=0,to=20,by=2), label = as.character(2019 + seq(from=0,to=20,by=2)), expand = c(0,0)) +
      scale_y_continuous(name ="Percentage", breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), label = c("0%", "20%","40%", "60%", "80%", "100%"), limits = c(0,1), expand = c(0,0)) + # expand -> y axis begins at 0 strict
-     theme_bw(base_size = 17) +
+     theme_bw(base_size = 25) +
      scale_color_manual(values = c("A2" =  "#004F71", "A1" = "#298FC2", "A0" = "#8DC8E8"))+
      theme(plot.title = element_text(margin = margin(t = 0, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
            axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 0, l = 0)),
            axis.title.y = element_text(margin = margin(t = 10, r = 20, b = 0, l = 0)),
            strip.text = element_text(size=12)) +
-     labs(color = "Level") + ggtitle("Proportion of exposure per autonomy level")    +
+     labs(color = "Level") + ggtitle("Proportion of Exposure per Autonomy Level")    +
      facet_wrap(. ~ Type, scales = "free") 
    
    ggsave("graphs/exposure_pct_pandc_base.png", device = "png",plot = exp.carb.graph.base, width = 60, height = 20, units = "cm")
@@ -1129,14 +1015,14 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   
   totalclaim.pct <- ggplot(data = tmp.melt) + 
     geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
-    ggtitle("Expected total loss shocking autonomous % of Carbia") + 
+    ggtitle("Expected Total Loss Shocking Autonomous % of Carbia") + 
     scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
                        breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
                        labels = seq(from=0,to=1.800,by=0.100), 
                        expand = c(0,0),
                        limits = c(0, 1.8)*10^9) + 
     scale_x_continuous(name = "Year", expand = c(0,0)) +
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -1161,14 +1047,14 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   
   totalclaim.coverage <- ggplot(data = tmp.melt) + 
     geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
-    ggtitle("Expected total loss shocking new coverage") + 
+    ggtitle("Expected Total Loss Shocking the New Coverage") + 
     scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
                        breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
                        labels = seq(from=0,to=1.800,by=0.100), 
                        expand = c(0,0),
                        limits = c(0, 1.8)*10^9) + 
     scale_x_continuous(name = "Year", expand = c(0,0)) +
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -1194,14 +1080,14 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   
   totalclaim.mult <- ggplot(data = tmp.melt) + 
     geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
-    ggtitle("Expected total loss shocking frequency and amount") + 
+    ggtitle("Expected Total Loss Shocking Frequency and Amount") + 
     scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
                        breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
                        labels = seq(from=0,to=1.800,by=0.100), 
                        expand = c(0,0),
                        limits = c(0, 1.8)*10^9) + 
     scale_x_continuous(name = "Year", expand = c(0,0)) +
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -1227,14 +1113,14 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   
   totalclaim.ms <- ggplot(data = tmp.melt) + 
     geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
-    ggtitle("Expected total loss shocking safelife's market share") + 
+    ggtitle("Expected Total Loss Shocking Safelife's Market Share") + 
     scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
                        breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
                        labels = seq(from=0,to=1.800,by=0.100), 
                        expand = c(0,0),
                        limits = c(0, 1.8)*10^9) + 
     scale_x_continuous(name = "Year", expand = c(0,0)) +
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -1258,14 +1144,14 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   
   totalclaim.comb <- ggplot(data = tmp.melt) + 
     geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
-    ggtitle("Expected total loss shocks combined") + 
+    ggtitle("Expected Total Loss Shocks Combined") + 
     scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
                        breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
                        labels = seq(from=0,to=1.800,by=0.100), 
                        expand = c(0,0),
                        limits = c(0, 1.8)*10^9) + 
     scale_x_continuous(name = "Year", expand = c(0,0)) +
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -1289,14 +1175,14 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   
   totalclaim.NOAV <- ggplot(data = tmp.melt) + 
     geom_bar(mapping = aes(x = time, y = value, fill = variable) , stat = "identity", width = 0.2) +
-    ggtitle("Expected total loss") + 
+    ggtitle("Expected Total Loss") + 
     scale_y_continuous(name = TeX("Loss in billions  $\\hat{C}$") , 
                        breaks = seq(from=0,to=1.800,by=0.100) * 10^9, 
                        labels = seq(from=0,to=1.800,by=0.100), 
                        expand = c(0,0),
                        limits = c(0, 1.8)*10^9) + 
     scale_x_continuous(name = "Year", expand = c(0,0)) +
-    theme_bw(base_size = 20) + 
+    theme_bw(base_size = 25) + 
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
@@ -1331,9 +1217,9 @@ plot.scenarios <- function(all, history, safelife.ms, carb.c.exp.pct, carb.p.exp
   
   premium.prop <- ggplot() + 
     geom_line(data = tmp, mapping = aes(x = time, y = prop), size = 1.1) +
-    ggtitle("AV's percentage of exposure") +
+    ggtitle("AV's Percentage of Exposure") +
     scale_color_manual(values = c("A2" = "#298FC2" , "A1" = "#8DC8E8", "A1 and A2" = "#004F71")) + 
-    theme_bw(base_size = 20)  +
+    theme_bw(base_size = 25)  +
     theme(plot.title = element_text(margin = margin(t = 15, r = 5.5, b = 20, l = 5.5), hjust = 0.5),
           axis.title.x = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
           axis.title.y = element_text(margin = margin(t = 5.5, r = 20, b = 20, l = 5.5)),
